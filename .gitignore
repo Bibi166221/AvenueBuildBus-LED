@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets
+senddata/*.json
+!senddata/package.json
+!senddata/package-lock.json
+service_account.json

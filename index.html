@@ -1,13 +1,766 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>my-react-app</title>
-  </head>
-  <body>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Bus Display</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React & DOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.development.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.development.min.js"></script>
+
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-firestore-compat.js"></script>
+
+    <!-- Google Fonts: Kanit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f3f4f6;
+            /* Light gray match */
+        }
+
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+    <script type="text/babel">
+        const React = window.React;
+        const ReactDOM = window.ReactDOM;
+        const { useState, useEffect, useMemo } = React;
+
+        // --- FIREBASE SETUP ---
+        const { initializeApp } = firebase;
+        const getAuth = (app) => app.auth();
+        const signInAnonymously = (auth) => auth.signInAnonymously();
+        const signInWithCustomToken = (auth, token) => auth.signInWithCustomToken(token);
+        const onAuthStateChanged = (auth, callback) => auth.onAuthStateChanged(callback);
+        const getFirestore = (app) => app.firestore();
+        const collection = (db, path) => db.collection(path);
+        const onSnapshot = (ref, onNext, onError) => ref.onSnapshot(onNext, onError);
+
+        // CONFIG LOGIC (Same as before)
+        const FALLBACK_CONFIG = {
+            "apiKey": "AIzaSyAQNkW3SqJZxeXhtsEDn-2ImbaRs7huL_A",
+            "authDomain": "busweb-5980a.firebaseapp.com",
+            "projectId": "busweb-5980a",
+            "storageBucket": "busweb-5980a.firebasestorage.app",
+            "messagingSenderId": "943066555414",
+            "appId": "1:943066555414:web:6372addd20bdee568e0137",
+        };
+
+        let loadedConfig = {};
+        if (typeof __firebase_config === 'string' && __firebase_config.length > 2) {
+            loadedConfig = JSON.parse(__firebase_config);
+        } else {
+            loadedConfig = FALLBACK_CONFIG;
+        }
+        const ENV_FIREBASE_CONFIG = loadedConfig;
+        const isFirebaseConfigured = Object.keys(ENV_FIREBASE_CONFIG).length > 0;
+        const RAW_APP_ID_FROM_ENV = typeof __app_id !== 'undefined' ? __app_id : ENV_FIREBASE_CONFIG.projectId || 'default-app-id';
+        const ENV_APP_ID = RAW_APP_ID_FROM_ENV.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const ENV_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+
+        const app = isFirebaseConfigured ? initializeApp(ENV_FIREBASE_CONFIG) : null;
+        const db = app ? getFirestore(app) : null;
+        const auth = app ? getAuth(app) : null;
+
+
+        /**
+         * RouteVisualization Component
+         * Draws the curved red line and places dots.
+         */
+        // --- ENHANCED STYLES FOR ANIMATIONS ---
+        const styles = `
+            @keyframes fadeIn { 
+                from { opacity: 0; } 
+                to { opacity: 1; } 
+            }
+            @keyframes slideInUp { 
+                from { transform: translateY(50px); opacity: 0; } 
+                to { transform: translateY(0); opacity: 1; } 
+            }
+            @keyframes pulse { 
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.15); opacity: 0.8; }
+            }
+            @keyframes glowPulse {
+                0%, 100% { box-shadow: 0 0 20px rgba(218, 41, 28, 0.6), 0 0 40px rgba(218, 41, 28, 0.4); }
+                50% { box-shadow: 0 0 30px rgba(218, 41, 28, 0.9), 0 0 60px rgba(218, 41, 28, 0.6); }
+            }
+            @keyframes progressRing {
+                from { stroke-dashoffset: 1000; }
+                to { stroke-dashoffset: 0; }
+            }
+            @keyframes busMove {
+                0% { transform: translateY(0px); }
+                50% { transform: translateY(-8px); }
+                100% { transform: translateY(0px); }
+            }
+            @keyframes bounce {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-15px); }
+            }
+            
+            @keyframes blink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.3; }
+            }
+            @keyframes flash-highlight {
+                0% { opacity: 0.4; transform: scale(0.98); background-color: rgba(255, 255, 0, 0.2); }
+                50% { opacity: 1; transform: scale(1.02); background-color: transparent; }
+                100% { opacity: 1; transform: scale(1); }
+            }
+            .animate-flash-once {
+                animation: flash-highlight 1s ease-out forwards;
+            }
+            .animate-fade-in { animation: fadeIn 1s ease-out; }
+            .animate-slide-up { animation: slideInUp 0.8s ease-out; }
+            .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+            .animate-blink { animation: blink 1.5s ease-in-out infinite; }
+            .animate-glow { animation: glowPulse 2s ease-in-out infinite; }
+            .animate-bus { animation: busMove 3s ease-in-out infinite; }
+            .animate-bounce { animation: bounce 2s ease-in-out infinite; }
+            
+            .passed-stop { 
+                opacity: 0.4; 
+                filter: grayscale(50%);
+                transition: all 0.5s ease-out;
+            }
+            .smooth-transition {
+                transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+        `;
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = styles;
+        document.head.appendChild(styleSheet);
+
+        /**
+         * VideoZone Component
+         * Displays a looped video. 
+         * Uses a placeholder URL.
+         */
+        function VideoZone() {
+            return (
+                <div className="w-full h-[15vh] min-h-[15vh] bg-black overflow-hidden relative border-b-8 border-white z-50 flex-none">
+                    <video
+                        className="w-full h-full object-cover opacity-100"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                    >
+                        <source src="/Stem_businfo.mp4" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+
+                    {/* Optional Overlay Text */}
+                    <div className="absolute bottom-4 right-4 bg-black/50 text-white px-6 py-2 rounded-full backdrop-blur-sm text-sm font-bold tracking-widest border border-white/20">
+                        PUBLIC ANNOUNCEMENT
+                    </div>
+                </div>
+            );
+        }
+
+        /**
+         * Stop Component
+         * Individual stop with dot and text that can slide vertically
+         */
+        function Stop({ stop, position, isNext, isPassed, opacity = 1, fadeDuration = 400 }) {
+            // Position: 0 = bottom (current), 1 = middle, 2 = top
+            const configs = [
+                {
+                    // (0) Exit position (Off-screen bottom)
+                    dotClass: 'top-[100%] left-[23%] sm:left-[28.8%]',
+                    textClass: 'top-[100%] left-[33%] sm:left-[38%]',
+                    dotSize: 'w-32 h-32',
+                    dotBorder: 'border-0',
+                    textSize: 'text-8xl sm:text-9xl',
+                    subSize: 'text-6xl sm:text-7xl',
+                    textColor: 'text-gray-900',
+                    subColor: 'text-gray-700',
+                    shadow: 'shadow-none'
+                },
+                {
+                    // (1) Bottom position (CURRENT STOP)
+                    dotClass: 'top-[70%] left-[17%] sm:left-[22.8%]',
+                    textClass: 'top-[58%] left-[26%] sm:left-[34%]',
+                    dotSize: 'w-32 h-32',
+                    dotBorder: 'border-4',
+                    textSize: 'text-8xl sm:text-9xl',
+                    subSize: 'text-6xl sm:text-7xl',
+                    textColor: 'text-gray-900',
+                    subColor: 'text-gray-700',
+                    shadow: 'shadow-2xl'
+                },
+                {
+                    // (2) Middle position (NEXT STOP)
+                    dotClass: 'top-[42%] left-[11%] sm:left-[18%]',
+                    textClass: 'top-[42%] left-[22%] sm:left-[30%]',
+                    dotSize: 'w-28 h-28',
+                    dotBorder: 'border-2',
+                    textSize: 'text-5xl sm:text-6xl',
+                    subSize: 'text-4xl sm:text-5xl',
+                    textColor: 'text-gray-800',
+                    subColor: 'text-gray-600',
+                    shadow: 'shadow-lg'
+                },
+                {
+                    // (3) Top position (FUTURE STOP)
+                    dotClass: 'top-[21%] left-[3%] sm:left-[12%]',
+                    textClass: 'top-[21%] left-[12%] sm:left-[25%]',
+                    dotSize: 'w-28 h-28',
+                    dotBorder: 'border-2',
+                    textSize: 'text-5xl sm:text-6xl',
+                    subSize: 'text-4xl sm:text-5xl',
+                    textColor: 'text-gray-800',
+                    subColor: 'text-gray-600',
+                    shadow: 'shadow-lg'
+                },
+                {
+                    // (4) Entrance position (Off-screen top)
+                    dotClass: 'top-[-10%] left-[-2%] sm:left-[7%]',
+                    textClass: 'top-[-10%] left-[7%] sm:left-[20%]',
+                    dotSize: 'w-32 h-32',
+                    dotBorder: 'border-0',
+                    textSize: 'text-5xl sm:text-6xl',
+                    subSize: 'text-4xl sm:text-5xl',
+                    textColor: 'text-gray-800',
+                    subColor: 'text-gray-600',
+                    shadow: 'shadow-none'
+                }
+            ];
+
+            const config = configs[position] || configs[1];
+            // Position 1 is current stop, should be on top
+            const zIndex = position === 1 ? 'z-40' : (position === 2 ? 'z-30' : 'z-20');
+
+            return (
+                <div style={{ opacity, transition: `opacity ${fadeDuration}ms ease-in-out` }}>
+                    {/* DOT */}
+                    <div
+                        className={`absolute ${config.dotClass} ${zIndex} smooth-transition ${isPassed ? 'passed-stop' : ''} ${isNext ? 'animate-glow' : ''}`}
+                        style={{ transform: 'translate(-50%, -50%)' }}
+                    >
+                        <div className={`${config.dotSize} bg-white rounded-full ${config.shadow} ${config.dotBorder} border-white ${isNext ? 'animate-pulse' : ''}`}></div>
+                    </div>
+
+                    {/* TEXT */}
+                    <div
+                        className={`absolute ${config.textClass} ${zIndex} smooth-transition ${isPassed ? 'passed-stop' : ''} ${isNext ? 'animate-pulse' : ''}`}
+                        style={{ transform: 'translateY(-50%)' }}
+                    >
+                        <h4 className={`${config.textSize} font-bold leading-tight ${config.textColor} ${position === 0 ? 'drop-shadow-sm' : ''}`}>
+                            {stop?.stopNameTH || "..."}
+                        </h4>
+                        <p className={`${config.subSize} ${position === 0 ? 'font-semibold' : 'font-medium'} ${config.subColor}`}>
+                            {stop?.stopName || "..."}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        /**
+         * RouteVisualization Component
+         * Displays scrolling stops that slide down as bus progresses
+         */
+        function RouteVisualization({ stops = [] }) {
+            const [displayData, setDisplayData] = React.useState([]);
+            const [prevStops, setPrevStops] = React.useState([]);
+            const isAnimating = React.useRef(false);
+
+            // Helper to get current visible stops with keys
+            const getVisibleWithKeys = (arr) => {
+                const currentIdx = arr.findIndex(s => s.isNext);
+                const startIndex = currentIdx >= 0 ? currentIdx : 0;
+                const visible = [];
+                for (let i = 0; i < 3; i++) {
+                    const stop = arr[startIndex + i];
+                    if (stop) {
+                        visible.push({ stop, key: stop.stopName });
+                    } else {
+                        visible.push({ stop: { stopName: "...", stopNameTH: "..." }, key: `filler-${startIndex + i}` });
+                    }
+                }
+                return visible;
+            };
+
+            // Initialize display data
+            React.useEffect(() => {
+                const visible = getVisibleWithKeys(stops);
+                setDisplayData(visible.map((v, i) => ({ ...v, position: i + 1, opacity: 1 })));
+                setPrevStops(stops);
+            }, []);
+
+            // Handle updates with choreography or instant refresh
+            React.useEffect(() => {
+                if (prevStops.length > 0 && JSON.stringify(stops) !== JSON.stringify(prevStops)) {
+                    if (isAnimating.current) return;
+
+                    const nextVisible = getVisibleWithKeys(stops);
+                    const currentVisible = displayData.map(d => d.stop);
+
+                    // Check if it's a 1-stop sequential move
+                    // sequential if nextVisible[0] was previously at position 1 (which is index 1 in displayData)
+                    const isSequential = currentVisible[1] &&
+                        currentVisible[1].stopName.trim() === nextVisible[0].stop.stopName.trim();
+
+                    if (isSequential) {
+                        animateSequential(stops);
+                    } else {
+                        animateJump(stops);
+                    }
+                }
+            }, [stops]);
+
+            const animateJump = async (newStops) => {
+                isAnimating.current = true;
+                const nextVisible = getVisibleWithKeys(newStops);
+
+                // Fade out current items
+                setDisplayData(prev => prev.map(item => ({ ...item, opacity: 0 })));
+                await new Promise(r => setTimeout(r, 400));
+
+                // Swap and fade in
+                setDisplayData(nextVisible.map((v, i) => ({ ...v, position: i + 1, opacity: 1 })));
+                await new Promise(r => setTimeout(r, 600));
+
+                setPrevStops(newStops);
+                isAnimating.current = false;
+            };
+
+            const animateSequential = async (newStops) => {
+                const nextVisible = getVisibleWithKeys(newStops);
+                const currentData = [...displayData].slice(0, 4); // Handle case where previous animation didn't clean up
+
+                if (currentData.length < 3) {
+                    animateJump(newStops);
+                    return;
+                }
+
+                isAnimating.current = true;
+
+                // Sync the DATA part of our items with the NEW stops immediately
+                // This ensures the "Glow" (isNext) and "Passed" states update AS they move
+                const items = [
+                    { ...currentData[0], opacity: 1 },                   // The one exiting (old bottom)
+                    { ...nextVisible[0], opacity: 1 },                   // The one becoming bottom (new isNext)
+                    { ...nextVisible[1], opacity: 1 },                   // The one becoming middle
+                    { ...nextVisible[2], opacity: 0, fadeDuration: 100 } // The one entering top (hidden)
+                ];
+
+                // Step 0: Mount Entrance Item at pos 4 (Wait 100ms for stable render)
+                setDisplayData([
+                    { ...items[0], position: 1, opacity: 1 },
+                    { ...items[1], position: 2, opacity: 1 },
+                    { ...items[2], position: 3, opacity: 1 },
+                    { ...items[3], position: 4, opacity: 0 }
+                ]);
+                await new Promise(r => setTimeout(r, 100));
+
+                // Step 1: Slide ALL simultaneously to their NEW positions
+                setDisplayData([
+                    { ...items[0], position: 0, opacity: 0, fadeDuration: 600 }, // Exit
+                    { ...items[1], position: 1, opacity: 1 },                   // Current
+                    { ...items[2], position: 2, opacity: 1 },                   // Next
+                    { ...items[3], position: 3, opacity: 1, fadeDuration: 800 } // Future
+                ]);
+
+                await new Promise(r => setTimeout(r, 1000));
+
+                // Step 2: Final clean state
+                setDisplayData([
+                    { ...items[1], position: 1, opacity: 1 },
+                    { ...items[2], position: 2, opacity: 1 },
+                    { ...items[3], position: 3, opacity: 1 }
+                ]);
+
+                setPrevStops(newStops);
+                isAnimating.current = false;
+            };
+
+            if (displayData.length === 0) return null;
+
+            return (
+                <div className="relative w-full flex-grow bg-gray-100 overflow-hidden flex items-center justify-center animate-fade-in">
+                    <div className="relative w-full h-full max-w-[1920px]">
+                        {/* Red curved route line */}
+                        <svg viewBox="0 0 800 500" className="w-full h-full drop-shadow-xl" preserveAspectRatio="xMidYMid slice">
+                            <path
+                                d="M -604 50 C -94 50, 246 50, 196 550"
+                                fill="none"
+                                stroke="#da291c"
+                                strokeWidth="80"
+                                strokeLinecap="round"
+                            />
+                        </svg>
+
+                        {displayData.map((item) => (
+                            <Stop
+                                key={item.key}
+                                stop={item.stop}
+                                position={item.position ?? 0}
+                                isNext={item.stop.isNext}
+                                isPassed={item.stop.isPassed}
+                                opacity={item.opacity}
+                                fadeDuration={item.fadeDuration}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        /**
+         * SlidingText Component
+         * Handles vertical rolling transition for text
+         */
+        function SlidingText({ text, className }) {
+            const [displayText, setDisplayText] = useState(text);
+            const [slideState, setSlideState] = useState('active'); // 'active', 'slide-out'
+            const [nextText, setNextText] = useState('');
+
+            useEffect(() => {
+                if (text !== displayText && slideState === 'active') {
+                    setNextText(text);
+                    setSlideState('slide-out');
+                    setTimeout(() => {
+                        setDisplayText(text);
+                        setSlideState('active');
+                        setNextText('');
+                    }, 600);
+                }
+            }, [text]);
+
+            return (
+                <div className={`relative overflow-hidden h-full flex items-center ${className}`}>
+                    <div
+                        className={`transition-all duration-500 ease-in-out transform ${slideState === 'slide-out' ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-1'
+                            }`}
+                    >
+                        {displayText}
+                    </div>
+                    {slideState === 'slide-out' && (
+                        <div
+                            className="absolute inset-0 flex items-center translate-y-[-100%] animate-[slideInDown_0.5s_ease-out_forwards]"
+                        >
+                            {nextText}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // --- GPS CONFIGURATION & UTILS ---
+        const GPS_STOPS = [
+            // Stop 1: 13°54'15.0"N 99°32'10.1"E (Corrected Longitude to 100 based on context/proximity)
+            { id: 1, name: "Bus Stop 1", nameTH: "ป้ายที่ 1", lat: 13.904167, lng: 100.536139 },
+            // Stop 2: 13°54'13.8"N 100°32'07.9"E
+            { id: 2, name: "Bus Stop 2", nameTH: "ป้ายที่ 2", lat: 13.903833, lng: 100.535528 },
+            // Stop 3: 13°54'11.1"N 100°32'08.1"E
+            { id: 3, name: "Bus Stop 3", nameTH: "ป้ายที่ 3", lat: 13.903083, lng: 100.535583 }
+        ];
+
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            var R = 6371; // Radius of the earth in km
+            var dLat = deg2rad(lat2 - lat1);
+            var dLon = deg2rad(lon2 - lon1);
+            var a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var d = R * c; // Distance in km
+            return d;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+
+        function getClosestStop(lat, lng) {
+            if (!lat || !lng) return null;
+            let minDist = Infinity;
+            let closest = null;
+            let index = -1;
+
+            GPS_STOPS.forEach((stop, i) => {
+                const d = getDistanceFromLatLonInKm(lat, lng, stop.lat, stop.lng);
+                if (d < minDist) {
+                    minDist = d;
+                    closest = stop;
+                    index = i;
+                }
+            });
+
+            return { stop: closest, index, distance: minDist };
+        }
+
+        /**
+         * BusCard Component
+         * Handles layout, animations, and VOICE ANNOUNCEMENTS
+         */
+        function BusCard({ busId, data }) {
+            const busNum = data?.busNumber || busId;
+            const busSuffix = data?.busNumberSuffix || "";
+            const destination = data?.destination || "Unknown";
+            const destinationTH = data?.destinationTH || "";
+
+            // --- STATE DECLARATIONS ---
+            const [hasInteracted, setHasInteracted] = useState(false);
+            const [lastAnnouncedStop, setLastAnnouncedStop] = useState(null);
+            const [isDemoMode, setIsDemoMode] = useState(false);
+
+            // --- AUDIO CONFIG ---
+            const audioConfig = {
+                chimeStr: "/sounds/chime.mp3",
+                defaultStop: "/sounds/stops/default_next_stop.mp3",
+                stops: {
+                    "Active Square": "/sounds/stops/active_square.mp3",
+                    "Cosmo Bazaar": "/sounds/stops/cosmo_bazaar.mp3",
+                    "Kasikornthai Bank": "/sounds/stops/kasikorn_bank.mp3",
+                    "Silicon Science Park": "/sounds/stops/silicon_science_park.mp3",
+                    "Technology Plaza": "/sounds/stops/technology_plaza.mp3"
+                }
+            };
+
+            // --- GPS Debug ---
+            const gpsLat = data?.gps_lat;
+            const gpsLng = data?.gps_lng;
+            const speed = data?.speed;
+
+            // --- GPS LOGIC ---
+            // Calculate current stop based on GPS info
+            const gpsInfo = useMemo(() => isDemoMode ? null : getClosestStop(gpsLat, gpsLng), [isDemoMode, gpsLat, gpsLng]);
+
+            // Logic for "Next Stop" display:
+            // 1. If we are within 50m of stop[i], the "Next" stop is actually the one *after* (i+1).
+            // 2. If we are moving between stops and closest is [i], then [i] is the "Next" stop.
+            const calculatedTarget = useMemo(() => {
+                if (!gpsInfo) return null;
+                const { index, distance } = gpsInfo;
+
+                // If we are AT the stop (less than 50m), show the NEXT one in line
+                if (distance >= 0.05) {
+                    const nextIdx = Math.min(index + 1, GPS_STOPS.length - 1);
+                    return GPS_STOPS[nextIdx];
+                }
+                return GPS_STOPS[index];
+            }, [gpsInfo]);
+
+            // Determine Target Stop (Prefer GPS, fallback to Database)
+            const targetStop = calculatedTarget ? calculatedTarget.name : (data?.targetStopName || "Please Wait");
+            const targetStopTH = calculatedTarget ? calculatedTarget.nameTH : (data?.targetStopNameTH || "");
+
+            // Determine Next Stops
+            // If we found a GPS stop, we generate the list of *subsequent* stops
+            const rawStops = useMemo(() => {
+                if (calculatedTarget) {
+                    const currentIndex = GPS_STOPS.findIndex(s => s.name === calculatedTarget.name);
+                    if (currentIndex !== -1) {
+                        return GPS_STOPS.map((s, idx) => ({
+                            stopName: s.name,
+                            stopNameTH: s.nameTH,
+                            isNext: idx === currentIndex,
+                            isPassed: idx < currentIndex
+                        }));
+                    }
+                }
+                return data?.nextStops || [];
+            }, [calculatedStop, data?.nextStops]);
+
+
+            // --- EFFECT: AUDIO SYSTEM (Chime -> Voice) ---
+            useEffect(() => {
+                if (!hasInteracted || !targetStop || targetStop === "Please Wait") return;
+
+                // Prevent repeat
+                if (targetStop === lastAnnouncedStop) return;
+
+                // 1. Play Chime
+                const chime = new Audio(audioConfig.chimeStr);
+
+                chime.onended = () => {
+                    // 2. Play Voice when chime ends
+                    // "key" matches the EXACT string in database (e.g. "Active Square")
+                    const voiceFile = audioConfig.stops[targetStop] || audioConfig.defaultStop;
+                    console.log(`[Audio] Playing: ${voiceFile}`);
+                    const voice = new Audio(voiceFile);
+                    voice.play().catch(e => console.error("Voice Play Error:", e));
+                };
+
+                chime.play().catch(e => console.error("Chime Error:", e));
+
+                setLastAnnouncedStop(targetStop);
+
+            }, [targetStop, targetStopTH, hasInteracted, lastAnnouncedStop]);
+
+
+            // --- AUDIO ENABLE OVERLAY ---
+            if (!hasInteracted) {
+                return (
+                    <div
+                        className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center cursor-pointer animate-fade-in"
+                        onClick={() => {
+                            setHasInteracted(true);
+                            // Verify audio context unlocked
+                            const silent = new Audio(audioConfig.chimeStr);
+                            silent.volume = 0;
+                            silent.play().catch(() => { });
+                        }}
+                    >
+                        <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md mx-4">
+                            <h1 className="text-4xl font-bold mb-4 text-black">Click to Start</h1>
+                            <p className="text-xl text-gray-600 mb-6">Enable Audio Announcements & Fullscreen</p>
+                            <button className="bg-blue-600 text-white px-8 py-3 rounded-full text-lg font-bold animate-bounce">
+                                TAP ANYWHERE
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+
+
+            return (
+                <div className="w-full h-full flex flex-col bg-gray-100 overflow-hidden relative">
+
+                    {/* --- MODE TOGGLE BUTTON --- */}
+                    <div className="absolute bottom-2 right-2 z-[70] flex flex-col gap-2 items-end pointer-events-auto">
+                        <button
+                            onClick={() => setIsDemoMode(!isDemoMode)}
+                            className={`px-4 py-2 rounded-lg font-bold shadow-lg text-sm transition-all ${isDemoMode ? 'bg-blue-600 text-white animate-pulse' : 'bg-gray-800 text-gray-400'}`}
+                        >
+                            {isDemoMode ? "🛠 DEMO MODE ON" : "📡 GPS MODE ON"}
+                        </button>
+                    </div>
+
+                    {/* --- GPS DEBUG OVERLAY --- */}
+                    {(gpsLat || gpsLng) && (
+                        <div className={`absolute bottom-2 left-2 z-[60] bg-black/70 text-green-400 p-2 font-mono text-xs rounded pointer-events-none transition-opacity ${isDemoMode ? 'opacity-30' : 'opacity-100'}`}>
+                            <div>GPS LIVE:</div>
+                            <div>Lat: {Number(gpsLat).toFixed(6)}</div>
+                            <div>Lng: {Number(gpsLng).toFixed(6)}</div>
+                            {speed && <div>Spd: {speed} km/h</div>}
+                        </div>
+                    )}
+
+
+
+
+
+
+
+
+
+
+                    {/* Header Bar - Fixed Height, Flex Layout (No Absolutes) */}
+                    <div className="flex flex-col md:flex-row bg-[#e5e7eb] border-b-[6px] border-white shrink-0 z-40 shadow-sm min-h-[140px]">
+
+                        {/* 1. This Stop (Red) - REMOVED animate-blink */}
+                        <div className="bg-[#da291c] text-white p-4 md:p-6 min-w-[220px] lg:min-w-[280px] flex flex-col justify-center text-center md:text-left">
+                            <h2 className="text-3xl md:text-5xl font-semibold leading-none">ป้ายต่อไป</h2>
+                            <h2 className="text-xl md:text-2xl font-light mt-1">Next stop:</h2>
+                        </div>
+
+                        {/* 2. Stop Name (Center, Flex Grow) - ADDED animate-flash-once logic via key */}
+                        <div key={targetStop} className="flex-1 p-4 md:p-6 flex flex-col justify-center pl-4 md:pl-8 border-t md:border-t-0 md:border-r border-white/50 h-[140px] animate-flash-once">
+                            <div className="text-4xl md:text-6xl font-bold text-black mb-1 tracking-tight leading-tight">
+                                {targetStopTH}
+                            </div>
+                            <div className="text-2xl md:text-3xl font-medium text-gray-700">
+                                {targetStop}
+                            </div>
+                        </div>
+
+                        {/* 3. Right Side: Destination + Badge (Flex Row) */}
+                        <div className="flex flex-row bg-gray-200/50">
+
+                            {/* Destination Text */}
+                            <div className="p-4 md:p-6 flex flex-col justify-center text-right min-w-[200px] lg:min-w-[250px]">
+                                <span className="block text-2xl md:text-3xl font-bold mb-1 text-gray-800">ปลายทาง: {destinationTH}</span>
+                                <span className="block text-xl md:text-2xl text-gray-600">Towards: {destination}</span>
+                            </div>
+
+                            {/* Badge (Red Block) */}
+                            <div className="bg-[#da291c] text-white w-32 md:w-36 flex flex-col items-center justify-center shadow-lg">
+                                <span className="text-5xl md:text-6xl font-bold tracking-tighter">{busNum}</span>
+                                <span className="text-xl font-medium">{busSuffix}</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Body fills remaining space */}
+                    <RouteVisualization stops={rawStops} />
+                </div>
+            );
+        }
+
+        // --- MAIN APP ---
+        function App() {
+            const [liveBuses, setLiveBuses] = useState([]);
+            const [status, setStatus] = useState("Connecting...");
+
+            useEffect(() => {
+                if (!isFirebaseConfigured || !db) return;
+                const path = `/artifacts/${ENV_APP_ID}/public/data/bus-status`;
+                onSnapshot(collection(db, path), (snapshot) => {
+                    const buses = [];
+                    snapshot.forEach(doc => buses.push({ id: doc.id, data: doc.data() }));
+                    buses.sort((a, b) => (a.data.estimatedTimeSeconds || 0) - (b.data.estimatedTimeSeconds || 0));
+                    setLiveBuses(buses);
+                });
+            }, []);
+
+            return (
+                <div className="w-full h-screen flex flex-col bg-white text-gray-900 overflow-hidden">
+                    {/* TOP SECTION: VIDEO (40% H) */}
+                    <VideoZone />
+
+                    {/* BOTTOM SECTION: BUS INFO (Remaining H) */}
+                    <div className="flex-grow relative w-full overflow-hidden">
+                        {liveBuses.length > 0 ? (
+                            <BusCard busId={liveBuses[0].id} data={liveBuses[0].data} />
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+                                <h1 className="text-3xl font-light mb-2">Connecting...</h1>
+                                <p className="text-xs">Path: /artifacts/{ENV_APP_ID}/public/data/bus-status</p>
+                            </div>
+                        )}
+                        <div className="absolute bottom-0 right-0 bg-red-500 text-white text-xs p-1 z-[100]">
+                            DEBUG: {liveBuses.length} buses. Path: /artifacts/{ENV_APP_ID}/public/data/bus-status
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Mount
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+
 </html>

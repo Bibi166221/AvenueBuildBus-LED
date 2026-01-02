@@ -1,0 +1,16 @@
+arrivalTimeSeconds: 300
+                }
+            ]
+        }
+    ];
+
+async function sendData() {
+    console.log("--- Starting Firebase Admin Data Sender ---");
+    console.log(`Target Collection: ${PUBLIC_COLLECTION_PATH}`);
+
+    try {
+        // 2. Initialize Firebase Admin SDK
+        // Uses 'getApps' for checking if initialized.
+        if (getApps().length === 0) {
+            console.log("Attempting to initialize Admin SDK using application default credentials...");
+

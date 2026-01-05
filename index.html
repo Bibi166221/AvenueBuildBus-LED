@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,17 +9,21 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+
     <!-- React & DOM -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.development.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.development.min.js"></script>
 
+
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
 
     <!-- Firebase Compat -->
     <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-firestore-compat.js"></script>
+
 
     <!-- Google Fonts: Kanit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,6 +32,7 @@
         href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
 
+
     <style>
         body {
             font-family: 'Kanit', sans-serif;
@@ -34,19 +40,23 @@
             /* Light gray match */
         }
 
+
         .text-shadow {
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 
+
 <body>
     <div id="root"></div>
+
 
     <script type="text/babel">
         const React = window.React;
         const ReactDOM = window.ReactDOM;
         const { useState, useEffect, useMemo } = React;
+
 
         // --- FIREBASE SETUP ---
         const { initializeApp } = firebase;
@@ -58,7 +68,8 @@
         const collection = (db, path) => db.collection(path);
         const onSnapshot = (ref, onNext, onError) => ref.onSnapshot(onNext, onError);
 
-        // CONFIG LOGIC (Same as before)
+
+        // CONFIG LOGIC
         const FALLBACK_CONFIG = {
             "apiKey": "AIzaSyAQNkW3SqJZxeXhtsEDn-2ImbaRs7huL_A",
             "authDomain": "busweb-5980a.firebaseapp.com",
@@ -67,6 +78,7 @@
             "messagingSenderId": "943066555414",
             "appId": "1:943066555414:web:6372addd20bdee568e0137",
         };
+
 
         let loadedConfig = {};
         if (typeof __firebase_config === 'string' && __firebase_config.length > 2) {
@@ -80,9 +92,11 @@
         const ENV_APP_ID = RAW_APP_ID_FROM_ENV.replace(/[^a-zA-Z0-9_-]/g, '_');
         const ENV_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
+
         const app = isFirebaseConfigured ? initializeApp(ENV_FIREBASE_CONFIG) : null;
         const db = app ? getFirestore(app) : null;
         const auth = app ? getAuth(app) : null;
+
 
         // --- SECOND FIREBASE SETUP (ANNOUNCEMENTS) ---
         // Placeholder config for friend's firebase
@@ -95,10 +109,13 @@
             "appId": "PLACEHOLDER_APP_ID"
         };
 
+
         // Check if config is provided via external source, else use placeholder
         const activeAnnounceConfig = (typeof __announce_config !== 'undefined') ? __announce_config : ANNOUNCEMENT_CONFIG;
         const announceApp = (activeAnnounceConfig.apiKey !== "PLACEHOLDER_API_KEY") ? initializeApp(activeAnnounceConfig, "announcementApp") : null;
         const announceDb = announceApp ? getFirestore(announceApp) : null;
+
+
 
 
         /**
@@ -107,15 +124,15 @@
          */
         // --- ENHANCED STYLES FOR ANIMATIONS ---
         const styles = `
-            @keyframes fadeIn { 
-                from { opacity: 0; } 
-                to { opacity: 1; } 
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
             }
-            @keyframes slideInUp { 
-                from { transform: translateY(50px); opacity: 0; } 
-                to { transform: translateY(0); opacity: 1; } 
+            @keyframes slideInUp {
+                from { transform: translateY(50px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
             }
-            @keyframes pulse { 
+            @keyframes pulse {
                 0%, 100% { transform: scale(1); opacity: 1; }
                 50% { transform: scale(1.15); opacity: 0.8; }
             }
@@ -136,7 +153,7 @@
                 0%, 100% { transform: translateY(0); }
                 50% { transform: translateY(-15px); }
             }
-            
+           
             @keyframes blink {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.3; }
@@ -156,15 +173,16 @@
             .animate-glow { animation: glowPulse 2s ease-in-out infinite; }
             .animate-bus { animation: busMove 3s ease-in-out infinite; }
             .animate-bounce { animation: bounce 2s ease-in-out infinite; }
-            
-            .passed-stop { 
-                opacity: 0.4; 
+           
+            .passed-stop {
+                opacity: 0.4;
                 filter: grayscale(50%);
                 transition: all 0.5s ease-out;
             }
             .smooth-transition {
                 transition: all 1.2s cubic-bezier(0.23, 1, 0.32, 1);
             }
+
 
             /* --- LED ANNOUNCEMENT STYLES --- */
             @keyframes marquee {
@@ -209,11 +227,12 @@
         styleSheet.innerText = styles;
         document.head.appendChild(styleSheet);
 
+
         /**
          * AnnouncementLED Component
          * High-end scrolling LED text
          */
-        function AnnouncementLED({ text = "Welcome to Avenue Build Bus", isEmergency = false }) {
+        function AnnouncementLED({ text = "Welcome to AvenueBus", isEmergency = false }) {
             return (
                 <div className="led-container w-full h-full flex items-center bg-[#050505] border-y border-white/5">
                     <div className={`led-text text-8xl lg:text-9xl font-black ${isEmergency ? 'led-text-door' : ''}`}>
@@ -222,6 +241,7 @@
                 </div>
             );
         }
+
 
         /**
          * VideoZone Component
@@ -243,6 +263,7 @@
                             Your browser does not support the video tag.
                         </video>
 
+
                         {/* Minimalist Badge */}
                         <div className="absolute inset-0 flex items-center justify-start px-4">
                             <div className="bg-red-600/80 text-[8px] lg:text-[10px] text-white px-2 py-0.5 rounded-sm font-bold tracking-tighter uppercase backdrop-blur-sm border border-white/10">
@@ -251,6 +272,7 @@
                         </div>
                     </div>
 
+
                     {/* Larger LED Announcement Area (2/3 of the 10vh box) */}
                     <div className="h-2/3 border-t border-gray-900 bg-black">
                         <AnnouncementLED text={announcementText} isEmergency={isEmergency} />
@@ -258,6 +280,7 @@
                 </div>
             );
         }
+
 
         /**
          * Stop Component
@@ -328,9 +351,11 @@
                 }
             ];
 
+
             const config = configs[position] || configs[1];
             // Position 1 is current stop, should be on top
             const zIndex = position === 1 ? 'z-40' : (position === 2 ? 'z-30' : 'z-20');
+
 
             return (
                 <div style={{ opacity, transition: `opacity ${fadeDuration}ms ease-in-out` }}>
@@ -341,6 +366,7 @@
                     >
                         <div className={`${config.dotSize} bg-white rounded-full ${config.shadow} ${config.dotBorder} border-white ${isNext ? 'animate-pulse' : ''}`}></div>
                     </div>
+
 
                     {/* TEXT */}
                     <div
@@ -358,6 +384,7 @@
             );
         }
 
+
         /**
          * RouteVisualization Component
          * Displays scrolling stops that slide down as bus progresses
@@ -366,6 +393,7 @@
             const [displayData, setDisplayData] = React.useState([]);
             const [prevStops, setPrevStops] = React.useState([]);
             const isAnimating = React.useRef(false);
+
 
             // Helper to get current visible stops with keys
             const getVisibleWithKeys = (arr) => {
@@ -383,6 +411,7 @@
                 return visible;
             };
 
+
             // Initialize display data
             React.useEffect(() => {
                 const visible = getVisibleWithKeys(stops);
@@ -390,18 +419,22 @@
                 setPrevStops(stops);
             }, []);
 
+
             // Handle updates with choreography or instant refresh
             React.useEffect(() => {
                 if (prevStops.length > 0 && JSON.stringify(stops) !== JSON.stringify(prevStops)) {
                     if (isAnimating.current) return;
 
+
                     const nextVisible = getVisibleWithKeys(stops);
                     const currentVisible = displayData.map(d => d.stop);
+
 
                     // Check if it's a 1-stop sequential move
                     // sequential if nextVisible[0] was previously at position 1 (which is index 1 in displayData)
                     const isSequential = currentVisible[1] &&
                         currentVisible[1].stopName.trim() === nextVisible[0].stop.stopName.trim();
+
 
                     if (isSequential) {
                         animateSequential(stops);
@@ -411,32 +444,40 @@
                 }
             }, [stops]);
 
+
             const animateJump = async (newStops) => {
                 isAnimating.current = true;
                 const nextVisible = getVisibleWithKeys(newStops);
+
 
                 // Fade out current items
                 setDisplayData(prev => prev.map(item => ({ ...item, opacity: 0 })));
                 await new Promise(r => setTimeout(r, 400));
 
+
                 // Swap and fade in
                 setDisplayData(nextVisible.map((v, i) => ({ ...v, position: i + 1, opacity: 1 })));
                 await new Promise(r => setTimeout(r, 600));
+
 
                 setPrevStops(newStops);
                 isAnimating.current = false;
             };
 
+
             const animateSequential = async (newStops) => {
                 const nextVisible = getVisibleWithKeys(newStops);
                 const currentData = [...displayData].slice(0, 4); // Handle case where previous animation didn't clean up
+
 
                 if (currentData.length < 3) {
                     animateJump(newStops);
                     return;
                 }
 
+
                 isAnimating.current = true;
+
 
                 // Sync the DATA part of our items with the NEW stops immediately
                 // This ensures the "Glow" (isNext) and "Passed" states update AS they move
@@ -447,6 +488,7 @@
                     { ...nextVisible[2], opacity: 0, fadeDuration: 100 } // The one entering top (hidden)
                 ];
 
+
                 // Step 0: Mount Entrance Item at pos 4 (Wait 100ms for stable render)
                 setDisplayData([
                     { ...items[0], position: 1, opacity: 1 },
@@ -456,6 +498,7 @@
                 ]);
                 await new Promise(r => setTimeout(r, 100));
 
+
                 // Step 1: Slide ONLY current stop OUT (1 -> 0)
                 setDisplayData([
                     { ...items[0], position: 0, opacity: 0, fadeDuration: 800 }, // Exit
@@ -464,6 +507,7 @@
                     { ...items[3], position: 4, opacity: 0 }                    // Wait
                 ]);
                 await new Promise(r => setTimeout(r, 600));
+
 
                 // Step 2: Slide new CURRENT stop IN (2 -> 1) - THE LEAD MOVE
                 setDisplayData([
@@ -475,6 +519,7 @@
                 // Give the main arrival more space to finish smoothly
                 await new Promise(r => setTimeout(r, 800));
 
+
                 // Step 3: Slide NEXT stop down (3 -> 2)
                 setDisplayData([
                     { ...items[0], position: 0, opacity: 0 },
@@ -484,6 +529,7 @@
                 ]);
                 await new Promise(r => setTimeout(r, 500));
 
+
                 // Step 4: Slide FUTURE stop in (4 -> 3)
                 setDisplayData([
                     { ...items[0], position: 0, opacity: 0 },
@@ -492,7 +538,9 @@
                     { ...items[3], position: 3, opacity: 1, fadeDuration: 800 } // Fade in/Move to 3
                 ]);
 
+
                 await new Promise(r => setTimeout(r, 1200));
+
 
                 // Final Clean
                 setDisplayData([
@@ -501,11 +549,14 @@
                     { ...items[3], position: 3, opacity: 1 }
                 ]);
 
+
                 setPrevStops(newStops);
                 isAnimating.current = false;
             };
 
+
             if (displayData.length === 0) return null;
+
 
             return (
                 <div className="relative w-full flex-grow bg-gray-100 overflow-hidden flex items-center justify-center animate-fade-in">
@@ -516,10 +567,11 @@
                                 d="M -604 50 C -94 50, 246 50, 196 550"
                                 fill="none"
                                 stroke="#da291c"
-                                strokeWidth="80"
+                                strokeWidth="90"
                                 strokeLinecap="round"
                             />
                         </svg>
+
 
                         {displayData.map((item) => (
                             <Stop
@@ -537,6 +589,7 @@
             );
         }
 
+
         /**
          * SlidingText Component
          * Handles vertical rolling transition for text
@@ -545,6 +598,7 @@
             const [displayText, setDisplayText] = useState(text);
             const [slideState, setSlideState] = useState('active'); // 'active', 'slide-out'
             const [nextText, setNextText] = useState('');
+
 
             useEffect(() => {
                 if (text !== displayText && slideState === 'active') {
@@ -557,6 +611,7 @@
                     }, 600);
                 }
             }, [text]);
+
 
             return (
                 <div className={`relative overflow-hidden h-full flex items-center ${className}`}>
@@ -577,21 +632,22 @@
             );
         }
 
+
         // --- GPS CONFIGURATION & UTILS ---
         const GPS_STOPS = [
             // Stop 1:  (Corrected Longitude to 100 based on context/proximity)
-            { id: 1, name: "Bus Stop 1", nameTH: "ป้ายที่ 1", lat: 13.913360, lng: 100.556458 },
-            // Stop 2: 
-            { id: 2, name: "Bus Stop 2", nameTH: "ป้ายที่ 2", lat: 13.913750, lng: 100.555917 },
-            // Stop 3: 
-            { id: 3, name: "Bus Stop 3", nameTH: "ป้ายที่ 3", lat: 13.913250, lng: 100.555750 }
+            { id: 1, name: "Bus Stop 1", nameTH: "ป้ายที่ 1", lat: 13.912694, lng: 100.556028 },
+            // Stop 2:
+            { id: 2, name: "Bus Stop 2", nameTH: "ป้ายที่ 2", lat: 100.555722, lng: 100.555722 },
+            // Stop 3:
+            { id: 3, name: "Bus Stop 3", nameTH: "ป้ายที่ 3", lat: 13.911694, lng: 100.555194 }
         ];
 
+
         const GPS_WARNINGS = [
-            { id: 101, name: "TURN LEFT", lat: 13.9135, lng: 100.5558, radius: 0.03 }, // 30m radius
-            { id: 102, name: "TURN LEFT", lat: 13.9125, lng: 100.5552, radius: 0.03 },
-            { id: 103, name: "TURN LEFT", lat: 13.9115, lng: 100.5545, radius: 0.03 }
+            { id: 104, name: "TURN RIGHT", lat: 13.912000, lng: 100.555583, radius: 0.03 },
         ];
+
 
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
             var R = 6371; // Radius of the earth in km
@@ -606,15 +662,18 @@
             return d;
         }
 
+
         function deg2rad(deg) {
             return deg * (Math.PI / 180);
         }
+
 
         function getClosestStop(lat, lng) {
             if (!lat || !lng) return null;
             let minDist = Infinity;
             let closest = null;
             let index = -1;
+
 
             GPS_STOPS.forEach((stop, i) => {
                 const d = getDistanceFromLatLonInKm(lat, lng, stop.lat, stop.lng);
@@ -625,8 +684,10 @@
                 }
             });
 
+
             return { stop: closest, index, distance: minDist };
         }
+
 
         function getClosestWarning(lat, lng) {
             if (!lat || !lng) return null;
@@ -639,6 +700,7 @@
             return null;
         }
 
+
         /**
          * BusCard Component
          * Handles layout, animations, and VOICE ANNOUNCEMENTS
@@ -649,38 +711,44 @@
             const destination = data?.destination || "Unknown";
             const destinationTH = data?.destinationTH || "";
 
+
             // --- STATE DECLARATIONS ---
             const [hasInteracted, setHasInteracted] = useState(false);
             const [lastAnnouncedStop, setLastAnnouncedStop] = useState(null);
             const [lastAnnouncedWarning, setLastAnnouncedWarning] = useState(null);
             const [isDemoMode, setIsDemoMode] = useState(false);
+            const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
 
             // --- AUDIO CONFIG ---
             const audioConfig = {
                 chimeStr: "/sounds/chime1.mp3",
                 defaultStop: "/sounds/stops/default_next_stop.mp3",
                 stops: {
-                    "Active Square": "/sounds/stops/active_square.mp3",
+                    "AKTIV Square": "/sounds/stops/active_square.mp3",
                     "Cosmo Bazaar": "/sounds/stops/cosmo_bazaar.mp3",
                     "Kasikornthai Bank": "/sounds/stops/kasikorn_bank.mp3",
                     "Opp. Wat Phasuk": "/sounds/stops/opp_watphasuk.mp3",
                     "Sukhothai Univ.": "/sounds/stops/sukhotai_univ.mp3"
                 },
                 warnings: {
-                    "TURN LEFT": "/sounds/turn_warning.mp3", // Custom turn MP3
-                    "TURN RIGHT": "/sounds/turn_warning.mp3",
+                    "TURN LEFT": "/sounds/stops/warning_turn.mp3", // Updated to correct path
+                    "TURN RIGHT": "/sounds/stops/warning_turn.mp3",
                     "HOLD ON": "/sounds/hold_on.mp3"
                 }
             };
+
 
             // --- GPS Debug ---
             const gpsLat = data?.gps_lat;
             const gpsLng = data?.gps_lng;
             const speed = data?.speed;
 
+
             // --- GPS LOGIC ---
             // Calculate current stop based on GPS info
             const gpsInfo = useMemo(() => isDemoMode ? null : getClosestStop(gpsLat, gpsLng), [isDemoMode, gpsLat, gpsLng]);
+
 
             // Logic for "Next Stop" display:
             // 1. If we are within 50m of stop[i], the "Next" stop is actually the one *after* (i+1).
@@ -688,6 +756,7 @@
             const calculatedTarget = useMemo(() => {
                 if (!gpsInfo) return null;
                 const { index, distance } = gpsInfo;
+
 
                 // If we are AT the stop (less than 50m), show the NEXT one in line
                 if (distance >= 0.05) {
@@ -697,9 +766,11 @@
                 return GPS_STOPS[index];
             }, [gpsInfo]);
 
+
             // Determine Target Stop (Prefer GPS, fallback to Database)
             const targetStop = calculatedTarget ? calculatedTarget.name : (data?.targetStopName || "Please Wait");
             const targetStopTH = calculatedTarget ? calculatedTarget.nameTH : (data?.targetStopNameTH || "");
+
 
             // Determine Next Stops
             // If we found a GPS stop, we generate the list of *subsequent* stops
@@ -719,66 +790,111 @@
             }, [calculatedTarget, data?.nextStops]);
 
 
+
+
             // --- EFFECT: AUDIO SYSTEM (Chime -> Voice) ---
             useEffect(() => {
                 if (!hasInteracted || !targetStop || targetStop === "Please Wait") return;
+                if (isAudioPlaying) return; // Prevent overlapping with other audio
 
                 // Prevent repeat
                 if (targetStop === lastAnnouncedStop) return;
+
+                // Mark as playing
+                setIsAudioPlaying(true);
 
                 // 1. Play Chime
                 const chime = new Audio(audioConfig.chimeStr);
 
                 chime.onended = () => {
                     // 2. Play Voice when chime ends
-                    // Robust lookup: search keys ignoring case and leading/trailing spaces
                     const targetKey = targetStop.trim().toLowerCase();
                     const matchedKey = Object.keys(audioConfig.stops).find(k => k.trim().toLowerCase() === targetKey);
 
                     const voiceFile = matchedKey ? audioConfig.stops[matchedKey] : audioConfig.defaultStop;
-
                     console.log(`[Audio] Announcing: "${targetStop}" -> ${voiceFile}`);
 
                     const voice = new Audio(voiceFile);
-                    voice.play().catch(e => console.error("Voice Play Error:", e));
+                    voice.onended = () => setIsAudioPlaying(false); // Done
+                    voice.play().catch(e => {
+                        console.error("Voice Play Error:", e);
+                        setIsAudioPlaying(false);
+                    });
                 };
 
-                chime.play().catch(e => console.error("Chime Error:", e));
+                chime.onerror = () => setIsAudioPlaying(false);
+                chime.play().catch(e => {
+                    console.error("Chime Error:", e);
+                    setIsAudioPlaying(false);
+                });
 
                 setLastAnnouncedStop(targetStop);
 
-            }, [targetStop, targetStopTH, hasInteracted, lastAnnouncedStop]);
+            }, [targetStop, targetStopTH, hasInteracted, lastAnnouncedStop, isAudioPlaying]);
+
+
 
 
             // --- EFFECT: GPS WARNING SYSTEM ---
             const gpsWarning = useMemo(() => getClosestWarning(gpsLat, gpsLng), [gpsLat, gpsLng]);
-            const currentWarning = gpsWarning ? gpsWarning.name : "";
+            // Support both local GPS calculation and manual Firebase warning trigger
+            const currentWarning = data?.warning || (gpsWarning ? gpsWarning.name : "");
+
 
             useEffect(() => {
-                if (!hasInteracted || !currentWarning || currentWarning === lastAnnouncedWarning) return;
+                if (!hasInteracted) return;
+
+                // Reset tracker if no warning is active
+                if (!currentWarning) {
+                    if (lastAnnouncedWarning !== null) {
+                        setLastAnnouncedWarning(null);
+                    }
+                    return;
+                }
+
+                if (currentWarning === lastAnnouncedWarning) return;
+                if (isAudioPlaying) return; // Prioritize whatever is already speaking
 
                 const warningKey = currentWarning.trim().toUpperCase();
                 const voiceFile = audioConfig.warnings[warningKey] || audioConfig.defaultStop;
 
+                // Mark as playing
+                setIsAudioPlaying(true);
+
                 // If it's a TURN warning, play immediately WITHOUT chime
                 if (warningKey.includes("TURN")) {
-                    console.log(`[Audio GPS] Turn Warning (No Chime): "${currentWarning}" -> ${voiceFile}`);
+                    console.log(`[Audio GPS] Turn Warning: "${currentWarning}" -> ${voiceFile}`);
+
                     const voice = new Audio(voiceFile);
-                    voice.play().catch(e => console.error("Turn Voice Play Error:", e));
+                    voice.onended = () => setIsAudioPlaying(false);
+                    voice.play().catch(e => {
+                        console.error("Turn Voice Play Error:", e);
+                        setIsAudioPlaying(false);
+                    });
                 } else {
                     // Otherwise, play chime then voice
-                    console.log(`[Audio GPS] Warning Triggered: "${currentWarning}" (Playing Chime first)`);
+                    console.log(`[Audio GPS] Warning Triggered: "${currentWarning}" (Chime first)`);
                     const chime = new Audio(audioConfig.chimeStr);
                     chime.onended = () => {
                         const voice = new Audio(voiceFile);
-                        voice.play().catch(e => console.error("Warning Voice Play Error:", e));
+                        voice.onended = () => setIsAudioPlaying(false);
+                        voice.play().catch(e => {
+                            console.error("Warning Voice Play Error:", e);
+                            setIsAudioPlaying(false);
+                        });
                     };
-                    chime.play().catch(e => console.error("Chime Error:", e));
+                    chime.onerror = () => setIsAudioPlaying(false);
+                    chime.play().catch(e => {
+                        console.error("Chime Error:", e);
+                        setIsAudioPlaying(false);
+                    });
                 }
 
                 setLastAnnouncedWarning(currentWarning);
 
-            }, [currentWarning, hasInteracted, lastAnnouncedWarning]);
+            }, [currentWarning, hasInteracted, lastAnnouncedWarning, isAudioPlaying]);
+
+
 
 
             // --- AUDIO ENABLE OVERLAY ---
@@ -807,8 +923,12 @@
 
 
 
+
+
+
             return (
                 <div className="w-full h-full flex flex-col bg-gray-100 overflow-hidden relative">
+
 
                     {/* --- MODE TOGGLE BUTTON --- */}
                     <div className="absolute bottom-2 right-2 z-[70] flex flex-col gap-2 items-end pointer-events-auto">
@@ -819,6 +939,7 @@
                             {isDemoMode ? "🛠 DEMO MODE ON" : "📡 GPS MODE ON"}
                         </button>
                     </div>
+
 
                     {/* --- GPS DEBUG OVERLAY --- */}
                     {(gpsLat || gpsLng) && (
@@ -839,14 +960,26 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
                     {/* Header Bar - Fixed Height, Flex Layout (No Absolutes) */}
                     <div className="flex flex-col md:flex-row bg-[#e5e7eb] border-b-[6px] border-white shrink-0 z-40 shadow-sm min-h-[140px]">
+
 
                         {/* 1. This Stop (Red) - REMOVED animate-blink */}
                         <div className="bg-[#da291c] text-white p-4 md:p-6 min-w-[220px] lg:min-w-[280px] flex flex-col justify-center text-center md:text-left">
                             <h2 className="text-3xl md:text-5xl font-semibold leading-none">ป้ายต่อไป</h2>
                             <h2 className="text-xl md:text-2xl font-light mt-1">Next stop:</h2>
                         </div>
+
 
                         {/* 2. Stop Name (Center, Flex Grow) - ADDED animate-flash-once logic via key */}
                         <div key={targetStop} className="flex-1 p-4 md:p-6 flex flex-col justify-center pl-4 md:pl-8 border-t md:border-t-0 md:border-r border-white/50 h-[140px] animate-flash-once">
@@ -858,14 +991,17 @@
                             </div>
                         </div>
 
+
                         {/* 3. Right Side: Destination + Badge (Flex Row) */}
                         <div className="flex flex-row bg-gray-200/50">
+
 
                             {/* Destination Text */}
                             <div className="p-4 md:p-6 flex flex-col justify-center text-right min-w-[300px] lg:min-w-[450px]">
                                 <span className="block text-3xl md:text-5xl font-bold mb-1 text-gray-800">ปลายทาง: {destinationTH}</span>
                                 <span className="block text-2xl md:text-4xl text-gray-600">Towards: {destination}</span>
                             </div>
+
 
                             {/* Badge (Red Block) */}
                             <div className="bg-[#da291c] text-white w-32 md:w-36 flex flex-col items-center justify-center shadow-lg">
@@ -874,7 +1010,9 @@
                             </div>
                         </div>
 
+
                     </div>
+
 
                     {/* Body fills remaining space */}
                     <RouteVisualization stops={rawStops} />
@@ -882,16 +1020,19 @@
             );
         }
 
+
         // --- MAIN APP ---
         function App() {
             const [liveBuses, setLiveBuses] = useState([]);
             const [status, setStatus] = useState("Connecting...");
 
+
             // New state for announcements
             const [announcement, setAnnouncement] = useState({
-                text: "WELCOME TO AVENUE BUILD BUS",
+                text: "Welcome to AvenueBus",
                 isEmergency: false
             });
+
 
             useEffect(() => {
                 if (!isFirebaseConfigured || !db) return;
@@ -904,9 +1045,11 @@
                 });
             }, []);
 
+
             // Listen for announcements from second Firebase
             useEffect(() => {
                 if (!announceDb) return;
+
 
                 const announceRef = collection(announceDb, 'announcements');
                 const unsubscribe = onSnapshot(announceRef, (snapshot) => {
@@ -921,6 +1064,7 @@
                 return () => unsubscribe();
             }, []);
 
+
             return (
                 <div className="w-full h-screen flex flex-col bg-white text-gray-900 overflow-hidden">
                     {/* TOP SECTION: VIDEO + LED (40% H) */}
@@ -928,6 +1072,7 @@
                         announcementText={liveBuses[0]?.data?.warning || (getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)?.name) || announcement.text}
                         isEmergency={(liveBuses[0]?.data?.warning || getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)) ? true : announcement.isEmergency}
                     />
+
 
                     {/* BOTTOM SECTION: BUS INFO (Remaining H) */}
                     <div className="flex-grow relative w-full overflow-hidden">
@@ -947,11 +1092,14 @@
             );
         }
 
+
         // Mount
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
 
+
     </script>
 </body>
+
 
 </html>

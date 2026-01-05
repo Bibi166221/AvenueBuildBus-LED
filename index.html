@@ -84,6 +84,22 @@
         const db = app ? getFirestore(app) : null;
         const auth = app ? getAuth(app) : null;
 
+        // --- SECOND FIREBASE SETUP (ANNOUNCEMENTS) ---
+        // Placeholder config for friend's firebase
+        const ANNOUNCEMENT_CONFIG = {
+            "apiKey": "PLACEHOLDER_API_KEY",
+            "authDomain": "PLACEHOLDER_AUTH_DOMAIN",
+            "projectId": "PLACEHOLDER_PROJECT_ID",
+            "storageBucket": "PLACEHOLDER_STORAGE_BUCKET",
+            "messagingSenderId": "PLACEHOLDER_SENDER_ID",
+            "appId": "PLACEHOLDER_APP_ID"
+        };
+
+        // Check if config is provided via external source, else use placeholder
+        const activeAnnounceConfig = (typeof __announce_config !== 'undefined') ? __announce_config : ANNOUNCEMENT_CONFIG;
+        const announceApp = (activeAnnounceConfig.apiKey !== "PLACEHOLDER_API_KEY") ? initializeApp(activeAnnounceConfig, "announcementApp") : null;
+        const announceDb = announceApp ? getFirestore(announceApp) : null;
+
 
         /**
          * RouteVisualization Component
@@ -147,7 +163,46 @@
                 transition: all 0.5s ease-out;
             }
             .smooth-transition {
-                transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                transition: all 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+            }
+
+            /* --- LED ANNOUNCEMENT STYLES --- */
+            @keyframes marquee {
+                0% { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
+            }
+            .led-container {
+                background: #000;
+                overflow: hidden;
+                white-space: nowrap;
+                position: relative;
+                box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            }
+            /* Dot Matrix Pattern Overlay */
+            .led-container::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background-image: radial-gradient(circle, rgba(0,0,0,0.4) 1px, transparent 1px);
+                background-size: 3px 3px;
+                z-index: 10;
+                pointer-events: none;
+            }
+            .led-text {
+                display: inline-block;
+                padding-left: 100%;
+                animation: marquee 25s linear infinite;
+                font-family: 'Courier New', Courier, monospace;
+                color: #ffcc00; /* Richer Amber */
+                text-shadow: 0 0 8px rgba(255, 204, 0, 0.9);
+                font-weight: 900;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                line-height: normal;
+            }
+            .led-text-door {
+                color: #ff1100; /* Urgent Red */
+                text-shadow: 0 0 10px rgba(255, 17, 0, 0.9);
             }
         `;
         const styleSheet = document.createElement("style");
@@ -155,27 +210,50 @@
         document.head.appendChild(styleSheet);
 
         /**
-         * VideoZone Component
-         * Displays a looped video. 
-         * Uses a placeholder URL.
+         * AnnouncementLED Component
+         * High-end scrolling LED text
          */
-        function VideoZone() {
+        function AnnouncementLED({ text = "Welcome to Avenue Build Bus", isEmergency = false }) {
             return (
-                <div className="w-full h-[15vh] min-h-[15vh] bg-black overflow-hidden relative border-b-8 border-white z-50 flex-none">
-                    <video
-                        className="w-full h-full object-cover opacity-100"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                    >
-                        <source src="/Stem_businfo.mp4" type="video/mp4" />
-                        Your browser does not support the video tag.
-                    </video>
+                <div className="led-container w-full h-full flex items-center bg-[#050505] border-y border-white/5">
+                    <div className={`led-text text-8xl lg:text-9xl font-black ${isEmergency ? 'led-text-door' : ''}`}>
+                        {text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {text}
+                    </div>
+                </div>
+            );
+        }
 
-                    {/* Optional Overlay Text */}
-                    <div className="absolute bottom-4 right-4 bg-black/50 text-white px-6 py-2 rounded-full backdrop-blur-sm text-sm font-bold tracking-widest border border-white/20">
-                        PUBLIC ANNOUNCEMENT
+        /**
+         * VideoZone Component
+         * Displays a looped video and the LED announcement bar.
+         */
+        function VideoZone({ announcementText, isEmergency }) {
+            return (
+                <div className="w-full h-[20vh] min-h-[150px] bg-black overflow-hidden relative border-b-4 border-white z-50 flex flex-col">
+                    {/* Compact Video Strip */}
+                    <div className="h-1/3 relative overflow-hidden bg-[#050505]">
+                        <video
+                            className="w-full h-full object-cover opacity-40 grayscale contrast-125"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                        >
+                            <source src="/Stem_businfo.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+
+                        {/* Minimalist Badge */}
+                        <div className="absolute inset-0 flex items-center justify-start px-4">
+                            <div className="bg-red-600/80 text-[8px] lg:text-[10px] text-white px-2 py-0.5 rounded-sm font-bold tracking-tighter uppercase backdrop-blur-sm border border-white/10">
+                                Live
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Larger LED Announcement Area (2/3 of the 10vh box) */}
+                    <div className="h-2/3 border-t border-gray-900 bg-black">
+                        <AnnouncementLED text={announcementText} isEmergency={isEmergency} />
                     </div>
                 </div>
             );
@@ -378,17 +456,45 @@
                 ]);
                 await new Promise(r => setTimeout(r, 100));
 
-                // Step 1: Slide ALL simultaneously to their NEW positions
+                // Step 1: Slide ONLY current stop OUT (1 -> 0)
                 setDisplayData([
-                    { ...items[0], position: 0, opacity: 0, fadeDuration: 600 }, // Exit
-                    { ...items[1], position: 1, opacity: 1 },                   // Current
-                    { ...items[2], position: 2, opacity: 1 },                   // Next
-                    { ...items[3], position: 3, opacity: 1, fadeDuration: 800 } // Future
+                    { ...items[0], position: 0, opacity: 0, fadeDuration: 800 }, // Exit
+                    { ...items[1], position: 2, opacity: 1 },                   // Wait
+                    { ...items[2], position: 3, opacity: 1 },                   // Wait
+                    { ...items[3], position: 4, opacity: 0 }                    // Wait
+                ]);
+                await new Promise(r => setTimeout(r, 600));
+
+                // Step 2: Slide new CURRENT stop IN (2 -> 1) - THE LEAD MOVE
+                setDisplayData([
+                    { ...items[0], position: 0, opacity: 0 },
+                    { ...items[1], position: 1, opacity: 1 },                   // Move to current
+                    { ...items[2], position: 3, opacity: 1 },                   // Wait
+                    { ...items[3], position: 4, opacity: 0 }                    // Wait
+                ]);
+                // Give the main arrival more space to finish smoothly
+                await new Promise(r => setTimeout(r, 800));
+
+                // Step 3: Slide NEXT stop down (3 -> 2)
+                setDisplayData([
+                    { ...items[0], position: 0, opacity: 0 },
+                    { ...items[1], position: 1, opacity: 1 },
+                    { ...items[2], position: 2, opacity: 1 },                   // Move to next
+                    { ...items[3], position: 4, opacity: 0 }                    // Wait
+                ]);
+                await new Promise(r => setTimeout(r, 500));
+
+                // Step 4: Slide FUTURE stop in (4 -> 3)
+                setDisplayData([
+                    { ...items[0], position: 0, opacity: 0 },
+                    { ...items[1], position: 1, opacity: 1 },
+                    { ...items[2], position: 2, opacity: 1 },
+                    { ...items[3], position: 3, opacity: 1, fadeDuration: 800 } // Fade in/Move to 3
                 ]);
 
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 1200));
 
-                // Step 2: Final clean state
+                // Final Clean
                 setDisplayData([
                     { ...items[1], position: 1, opacity: 1 },
                     { ...items[2], position: 2, opacity: 1 },
@@ -473,12 +579,18 @@
 
         // --- GPS CONFIGURATION & UTILS ---
         const GPS_STOPS = [
-            // Stop 1: 13°54'15.0"N 99°32'10.1"E (Corrected Longitude to 100 based on context/proximity)
-            { id: 1, name: "Bus Stop 1", nameTH: "ป้ายที่ 1", lat: 13.904167, lng: 100.536139 },
-            // Stop 2: 13°54'13.8"N 100°32'07.9"E
-            { id: 2, name: "Bus Stop 2", nameTH: "ป้ายที่ 2", lat: 13.903833, lng: 100.535528 },
-            // Stop 3: 13°54'11.1"N 100°32'08.1"E
-            { id: 3, name: "Bus Stop 3", nameTH: "ป้ายที่ 3", lat: 13.903083, lng: 100.535583 }
+            // Stop 1:  (Corrected Longitude to 100 based on context/proximity)
+            { id: 1, name: "Bus Stop 1", nameTH: "ป้ายที่ 1", lat: 13.913360, lng: 100.556458 },
+            // Stop 2: 
+            { id: 2, name: "Bus Stop 2", nameTH: "ป้ายที่ 2", lat: 13.913750, lng: 100.555917 },
+            // Stop 3: 
+            { id: 3, name: "Bus Stop 3", nameTH: "ป้ายที่ 3", lat: 13.913250, lng: 100.555750 }
+        ];
+
+        const GPS_WARNINGS = [
+            { id: 101, name: "TURN LEFT", lat: 13.9135, lng: 100.5558, radius: 0.03 }, // 30m radius
+            { id: 102, name: "TURN LEFT", lat: 13.9125, lng: 100.5552, radius: 0.03 },
+            { id: 103, name: "TURN LEFT", lat: 13.9115, lng: 100.5545, radius: 0.03 }
         ];
 
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -516,6 +628,17 @@
             return { stop: closest, index, distance: minDist };
         }
 
+        function getClosestWarning(lat, lng) {
+            if (!lat || !lng) return null;
+            for (const warning of GPS_WARNINGS) {
+                const d = getDistanceFromLatLonInKm(lat, lng, warning.lat, warning.lng);
+                if (d <= warning.radius) {
+                    return warning;
+                }
+            }
+            return null;
+        }
+
         /**
          * BusCard Component
          * Handles layout, animations, and VOICE ANNOUNCEMENTS
@@ -529,18 +652,24 @@
             // --- STATE DECLARATIONS ---
             const [hasInteracted, setHasInteracted] = useState(false);
             const [lastAnnouncedStop, setLastAnnouncedStop] = useState(null);
+            const [lastAnnouncedWarning, setLastAnnouncedWarning] = useState(null);
             const [isDemoMode, setIsDemoMode] = useState(false);
 
             // --- AUDIO CONFIG ---
             const audioConfig = {
-                chimeStr: "/sounds/chime.mp3",
+                chimeStr: "/sounds/chime1.mp3",
                 defaultStop: "/sounds/stops/default_next_stop.mp3",
                 stops: {
                     "Active Square": "/sounds/stops/active_square.mp3",
                     "Cosmo Bazaar": "/sounds/stops/cosmo_bazaar.mp3",
                     "Kasikornthai Bank": "/sounds/stops/kasikorn_bank.mp3",
-                    "Silicon Science Park": "/sounds/stops/silicon_science_park.mp3",
-                    "Technology Plaza": "/sounds/stops/technology_plaza.mp3"
+                    "Opp. Wat Phasuk": "/sounds/stops/opp_watphasuk.mp3",
+                    "Sukhothai Univ.": "/sounds/stops/sukhotai_univ.mp3"
+                },
+                warnings: {
+                    "TURN LEFT": "/sounds/turn_warning.mp3", // Custom turn MP3
+                    "TURN RIGHT": "/sounds/turn_warning.mp3",
+                    "HOLD ON": "/sounds/hold_on.mp3"
                 }
             };
 
@@ -602,9 +731,14 @@
 
                 chime.onended = () => {
                     // 2. Play Voice when chime ends
-                    // "key" matches the EXACT string in database (e.g. "Active Square")
-                    const voiceFile = audioConfig.stops[targetStop] || audioConfig.defaultStop;
-                    console.log(`[Audio] Playing: ${voiceFile}`);
+                    // Robust lookup: search keys ignoring case and leading/trailing spaces
+                    const targetKey = targetStop.trim().toLowerCase();
+                    const matchedKey = Object.keys(audioConfig.stops).find(k => k.trim().toLowerCase() === targetKey);
+
+                    const voiceFile = matchedKey ? audioConfig.stops[matchedKey] : audioConfig.defaultStop;
+
+                    console.log(`[Audio] Announcing: "${targetStop}" -> ${voiceFile}`);
+
                     const voice = new Audio(voiceFile);
                     voice.play().catch(e => console.error("Voice Play Error:", e));
                 };
@@ -614,6 +748,37 @@
                 setLastAnnouncedStop(targetStop);
 
             }, [targetStop, targetStopTH, hasInteracted, lastAnnouncedStop]);
+
+
+            // --- EFFECT: GPS WARNING SYSTEM ---
+            const gpsWarning = useMemo(() => getClosestWarning(gpsLat, gpsLng), [gpsLat, gpsLng]);
+            const currentWarning = gpsWarning ? gpsWarning.name : "";
+
+            useEffect(() => {
+                if (!hasInteracted || !currentWarning || currentWarning === lastAnnouncedWarning) return;
+
+                const warningKey = currentWarning.trim().toUpperCase();
+                const voiceFile = audioConfig.warnings[warningKey] || audioConfig.defaultStop;
+
+                // If it's a TURN warning, play immediately WITHOUT chime
+                if (warningKey.includes("TURN")) {
+                    console.log(`[Audio GPS] Turn Warning (No Chime): "${currentWarning}" -> ${voiceFile}`);
+                    const voice = new Audio(voiceFile);
+                    voice.play().catch(e => console.error("Turn Voice Play Error:", e));
+                } else {
+                    // Otherwise, play chime then voice
+                    console.log(`[Audio GPS] Warning Triggered: "${currentWarning}" (Playing Chime first)`);
+                    const chime = new Audio(audioConfig.chimeStr);
+                    chime.onended = () => {
+                        const voice = new Audio(voiceFile);
+                        voice.play().catch(e => console.error("Warning Voice Play Error:", e));
+                    };
+                    chime.play().catch(e => console.error("Chime Error:", e));
+                }
+
+                setLastAnnouncedWarning(currentWarning);
+
+            }, [currentWarning, hasInteracted, lastAnnouncedWarning]);
 
 
             // --- AUDIO ENABLE OVERLAY ---
@@ -697,9 +862,9 @@
                         <div className="flex flex-row bg-gray-200/50">
 
                             {/* Destination Text */}
-                            <div className="p-4 md:p-6 flex flex-col justify-center text-right min-w-[200px] lg:min-w-[250px]">
-                                <span className="block text-2xl md:text-3xl font-bold mb-1 text-gray-800">ปลายทาง: {destinationTH}</span>
-                                <span className="block text-xl md:text-2xl text-gray-600">Towards: {destination}</span>
+                            <div className="p-4 md:p-6 flex flex-col justify-center text-right min-w-[300px] lg:min-w-[450px]">
+                                <span className="block text-3xl md:text-5xl font-bold mb-1 text-gray-800">ปลายทาง: {destinationTH}</span>
+                                <span className="block text-2xl md:text-4xl text-gray-600">Towards: {destination}</span>
                             </div>
 
                             {/* Badge (Red Block) */}
@@ -722,6 +887,12 @@
             const [liveBuses, setLiveBuses] = useState([]);
             const [status, setStatus] = useState("Connecting...");
 
+            // New state for announcements
+            const [announcement, setAnnouncement] = useState({
+                text: "WELCOME TO AVENUE BUILD BUS",
+                isEmergency: false
+            });
+
             useEffect(() => {
                 if (!isFirebaseConfigured || !db) return;
                 const path = `/artifacts/${ENV_APP_ID}/public/data/bus-status`;
@@ -733,10 +904,30 @@
                 });
             }, []);
 
+            // Listen for announcements from second Firebase
+            useEffect(() => {
+                if (!announceDb) return;
+
+                const announceRef = collection(announceDb, 'announcements');
+                const unsubscribe = onSnapshot(announceRef, (snapshot) => {
+                    if (!snapshot.empty) {
+                        const data = snapshot.docs[0].data();
+                        setAnnouncement({
+                            text: (data.text || data.message || "SYSTEM ACTIVE").toUpperCase(),
+                            isEmergency: data.type === 'door' || data.isEmergency || data.status === 'open'
+                        });
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
             return (
                 <div className="w-full h-screen flex flex-col bg-white text-gray-900 overflow-hidden">
-                    {/* TOP SECTION: VIDEO (40% H) */}
-                    <VideoZone />
+                    {/* TOP SECTION: VIDEO + LED (40% H) */}
+                    <VideoZone
+                        announcementText={liveBuses[0]?.data?.warning || (getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)?.name) || announcement.text}
+                        isEmergency={(liveBuses[0]?.data?.warning || getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)) ? true : announcement.isEmergency}
+                    />
 
                     {/* BOTTOM SECTION: BUS INFO (Remaining H) */}
                     <div className="flex-grow relative w-full overflow-hidden">

@@ -16,8 +16,6 @@ const PUBLIC_COLLECTION_PATH = `/artifacts/${APP_ID}/public/data/bus-status`;
 
 // Full route with all stops
 const allStops = [
-    { stopName: "Cosmo Bazaar", stopNameTH: "คอสโม่บาซาร์" },
-    { stopName: "Kasikornthai Bank", stopNameTH: "ธนาคารกสิกรไทย" },
     { stopName: "Active Square", stopNameTH: "แอคทีฟสแควร์" },
     { stopName: "Opp. Wat Phasuk", stopNameTH: "ตรงข้ามวัดผาสุก" },
     { stopName: "Sukhothai Univ.", stopNameTH: "ม.สุโขทัยฯ" },
@@ -28,28 +26,38 @@ const allStops = [
 // Scenarios showing bus progressing through stops
 const scenarios = [
     {
-        name: "At Cosmo Bazaar",
+        name: "At Active Square",
         currentStopIndex: 0,
+        lat: 13.903083,
+        lng: 100.535583,
         description: "Bus is at first stop"
     },
     {
-        name: "Passed Cosmo → At Kasikorn Bank",
+        name: "Approaching Turn Left",
+        currentStopIndex: 0,
+        lat: 13.9035,
+        lng: 100.5358,
+        description: "Simulating GPS trigger for TURN LEFT"
+    },
+    {
+        name: "At Opp. Wat Phasuk",
         currentStopIndex: 1,
-        description: "Bus passed Cosmo, now at Kasikorn Bank"
-    },
-    {
-        name: "Passed Kasikorn → At Active Square",
-        currentStopIndex: 2,
-        description: "Bus passed Kasikorn, now at Active Square"
-    },
-    {
-        name: "Passed Active → At Opp. Wat Phasuk",
-        currentStopIndex: 3,
+        lat: 13.902,
+        lng: 100.535,
         description: "Bus passed Active, now at Opp. Wat Phasuk"
     },
     {
-        name: "Passed Opp. Wat Phasuk → At Sukhothai Univ.",
-        currentStopIndex: 4,
+        name: "Approaching Turn Right",
+        currentStopIndex: 1,
+        lat: 13.9025,
+        lng: 100.5352,
+        description: "Simulating GPS trigger for TURN RIGHT"
+    },
+    {
+        name: "At Sukhothai Univ.",
+        currentStopIndex: 2,
+        lat: 13.901,
+        lng: 100.534,
         description: "Bus passed Opp. Wat Phasuk, now at Sukhothai Univ."
     }
 ];
@@ -103,13 +111,15 @@ async function demonstrateScenario(scenarioIndex) {
         const busData = {
             busNumber: "166",
             busNumberSuffix: "(2-21E)",
-            destination: "Muang Thong Thani",
-            destinationTH: "เมืองทองธานี",
+            destination: "Victory Monument(Via Pak Kret)",
+            destinationTH: "อนุสาวรีย์ชัยสมรภูมิ(วนปากเกร็ด)",
             targetStopName: allStops[currentIndex].stopName,
             targetStopNameTH: allStops[currentIndex].stopNameTH,
             estimatedTimeSeconds: 5,
             currentDistanceMeters: 10,
-            nextStops: nextStops
+            nextStops: nextStops,
+            gps_lat: scenario.lat,
+            gps_lng: scenario.lng
         };
 
         const docRef = db.collection(PUBLIC_COLLECTION_PATH).doc("166");
@@ -136,8 +146,8 @@ async function runDemo() {
         await demonstrateScenario(i);
 
         if (i < scenarios.length - 1) {
-            console.log(`\n⏳ Next stop in 10 seconds...`);
-            await new Promise(resolve => setTimeout(resolve, 10000));
+            console.log(`\n⏳ Next stop in 20 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 20000));
         }
     }
 

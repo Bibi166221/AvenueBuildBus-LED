@@ -1,16 +1,4 @@
-/**
- * ESP8266 GPS Tracker for Bus Web App
- * 
- * Hardware Requirements:
- * - ESP8266 (NodeMCU, Wemos D1 Mini, etc.)
- * - NEO-M8N GPS Module
- * 
- * Wiring (Example for NodeMCU/Wemos):
- * - GPS VCC -> 3.3V or 5V (Check module specs)
- * - GPS GND -> GND
- * - GPS TX  -> ESP8266 GPIO 4 (D2) [SoftwareSerial RX]
- * - GPS RX  -> ESP8266 GPIO 5 (D1) [SoftwareSerial TX]
- * 
+/* 
  * Dependencies (Install via Arduino Library Manager):
  * 1. TinyGPSPlus by Mikal Hart
  * 2. Firebase Arduino Client Library for ESP8266 and ESP32 by Mobizt
@@ -44,8 +32,7 @@
 #define GPS_TX_PIN 5 // D1 (Connect to GPS RX)
 
 // ==========================================
-// OBJECTS & VARIABLES
-// ==========================================
+
 
 TinyGPSPlus gps;
 SoftwareSerial SerialGPS(GPS_RX_PIN, GPS_TX_PIN);
@@ -55,7 +42,7 @@ FirebaseAuth auth;
 FirebaseConfig config;
 
 unsigned long sendDataPrevMillis = 0;
-const long sendInterval = 5000; // Send every 5 seconds
+const long sendInterval = 5000; 
 
 
 // Callback to print the token generation status

@@ -5,15 +5,21 @@
 // - Simulates bus progression through the route
 
 
+
+
 import { initializeApp, getApps, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 
+
+
 const firebaseClientConfig = {
     "projectId": "busweb-5980a",
 };
+
+
 
 
 // Helper to find service account
@@ -30,8 +36,12 @@ const findServiceAccount = () => {
 };
 
 
+
+
 const APP_ID = firebaseClientConfig.projectId.replace(/[^a-zA-Z0-9_-]/g, '_');
 const PUBLIC_COLLECTION_PATH = `/artifacts/${APP_ID}/public/data/bus-status`;
+
+
 
 
 // Full route with all stops
@@ -42,6 +52,8 @@ const allStops = [
     { stopName: "MRT Srirat station", stopNameTH: "สถานีรถไฟฟ้าศรีรัช" },
     { stopName: "Klong Kleau school", stopNameTH: "โรงเรียนคลองเกลือ" },
 ];
+
+
 
 
 // Scenarios showing bus progressing through stops
@@ -86,6 +98,8 @@ const scenarios = [
 ];
 
 
+
+
 async function demonstrateScenario(scenarioIndex) {
     try {
         if (getApps().length === 0) {
@@ -106,9 +120,13 @@ async function demonstrateScenario(scenarioIndex) {
         }
 
 
+
+
         const db = getFirestore();
         const scenario = scenarios[scenarioIndex];
         const currentIndex = scenario.currentStopIndex;
+
+
 
 
         console.log(`\n${'='.repeat(70)}`);
@@ -117,8 +135,12 @@ async function demonstrateScenario(scenarioIndex) {
         console.log('='.repeat(70));
 
 
+
+
         // Build nextStops array (show current + 2 upcoming)
         const nextStops = [];
+
+
 
 
         // Add passed stops (marked as isPassed: true)
@@ -128,6 +150,8 @@ async function demonstrateScenario(scenarioIndex) {
                 isPassed: true
             });
         }
+
+
 
 
         // Add current stop (marked as isNext: true)
@@ -140,6 +164,8 @@ async function demonstrateScenario(scenarioIndex) {
         }
 
 
+
+
         // Add upcoming stops
         for (let i = currentIndex + 1; i < Math.min(currentIndex + 3, allStops.length); i++) {
             nextStops.push({
@@ -147,6 +173,8 @@ async function demonstrateScenario(scenarioIndex) {
                 arrivalTimeSeconds: (i - currentIndex) * 120  // 2 min per stop
             });
         }
+
+
 
 
         const busData = {
@@ -165,8 +193,12 @@ async function demonstrateScenario(scenarioIndex) {
         };
 
 
+
+
         const docRef = db.collection(PUBLIC_COLLECTION_PATH).doc("166");
         await docRef.set(busData, { merge: true });
+
+
 
 
         console.log(`✅ Updated to: ${allStops[currentIndex].stopNameTH}`);
@@ -178,10 +210,14 @@ async function demonstrateScenario(scenarioIndex) {
         console.log(`\n🎬 Watch the browser - stops should scroll down!`);
 
 
+
+
     } catch (error) {
         console.error("❌ Error:", error.message);
     }
 }
+
+
 
 
 async function runDemo() {
@@ -189,8 +225,12 @@ async function runDemo() {
     console.log("Watch the stops slide down as the bus progresses!\n");
 
 
+
+
     for (let i = 0; i < scenarios.length; i++) {
         await demonstrateScenario(i);
+
+
 
 
         if (i < scenarios.length - 1) {
@@ -200,6 +240,8 @@ async function runDemo() {
     }
 
 
+
+
     console.log(`\n${'='.repeat(70)}`);
     console.log("🎉 Demo Complete!");
     console.log("The stops should have scrolled down as new ones appeared!");
@@ -207,8 +249,12 @@ async function runDemo() {
 }
 
 
+
+
 // Check for command line argument
 const scenarioNum = parseInt(process.argv[2]);
+
+
 
 
 if (scenarioNum && scenarioNum >= 1 && scenarioNum <= scenarios.length) {
@@ -229,6 +275,4 @@ if (scenarioNum && scenarioNum >= 1 && scenarioNum <= scenarios.length) {
     // Run full demo
     runDemo();
 }
-
-
 

@@ -2,6 +2,8 @@
 <html lang="en">
 
 
+
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,19 +12,28 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
 
+
+
     <!-- React & DOM -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.development.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.development.min.js"></script>
+
+
 
 
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 
+
+
     <!-- Firebase Compat -->
     <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-database-compat.js"></script>
+
+
 
 
     <!-- Google Fonts: Kanit -->
@@ -33,12 +44,16 @@
         rel="stylesheet">
 
 
+
+
     <style>
         body {
             font-family: 'Kanit', sans-serif;
             background-color: #f3f4f6;
             /* Light gray match */
         }
+
+
 
 
         .text-shadow {
@@ -48,14 +63,20 @@
 </head>
 
 
+
+
 <body>
     <div id="root"></div>
+
+
 
 
     <script type="text/babel">
         const React = window.React;
         const ReactDOM = window.ReactDOM;
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+
 
 
         // --- FIREBASE SETUP ---
@@ -65,8 +86,12 @@
         const signInWithCustomToken = (auth, token) => auth.signInWithCustomToken(token);
         const onAuthStateChanged = (auth, callback) => auth.onAuthStateChanged(callback);
         const getFirestore = (app) => app.firestore();
+        const getDatabase = (app) => app.database();
         const collection = (db, path) => db.collection(path);
         const onSnapshot = (ref, onNext, onError) => ref.onSnapshot(onNext, onError);
+        const onValue = (ref, callback) => ref.on('value', callback);
+
+
 
 
         // CONFIG LOGIC
@@ -77,7 +102,10 @@
             "storageBucket": "busweb-5980a.firebasestorage.app",
             "messagingSenderId": "943066555414",
             "appId": "1:943066555414:web:6372addd20bdee568e0137",
+            "databaseURL": "https://busweb-5980a-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
+
+
 
 
         let loadedConfig = {};
@@ -93,9 +121,14 @@
         const ENV_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
 
+
+
         const app = isFirebaseConfigured ? initializeApp(ENV_FIREBASE_CONFIG) : null;
         const db = app ? getFirestore(app) : null;
+        const rtdb = app ? getDatabase(app) : null;
         const auth = app ? getAuth(app) : null;
+
+
 
 
         // --- SECOND FIREBASE SETUP (ANNOUNCEMENTS) ---
@@ -110,10 +143,16 @@
         };
 
 
+
+
         // Check if config is provided via external source, else use placeholder
         const activeAnnounceConfig = (typeof __announce_config !== 'undefined') ? __announce_config : ANNOUNCEMENT_CONFIG;
         const announceApp = (activeAnnounceConfig.apiKey !== "PLACEHOLDER_API_KEY") ? initializeApp(activeAnnounceConfig, "announcementApp") : null;
         const announceDb = announceApp ? getFirestore(announceApp) : null;
+
+
+
+
 
 
 
@@ -184,6 +223,8 @@
             }
 
 
+
+
             /* --- LED ANNOUNCEMENT STYLES --- */
             @keyframes marquee {
                 0% { transform: translateX(100%); }
@@ -208,8 +249,8 @@
             }
             .led-text {
                 display: inline-block;
-                padding-left: 100%;
-                animation: marquee 25s linear infinite;
+                padding-left: 20%;
+                animation: marquee 60s linear infinite;
                 font-family: 'Courier New', Courier, monospace;
                 color: #ffcc00; /* Richer Amber */
                 text-shadow: 0 0 8px rgba(255, 204, 0, 0.9);
@@ -228,6 +269,8 @@
         document.head.appendChild(styleSheet);
 
 
+
+
         /**
          * AnnouncementLED Component
          * High-end scrolling LED text
@@ -236,18 +279,22 @@
             return (
                 <div className="led-container w-full h-full flex items-center bg-[#050505] border-y border-white/5">
                     <div className={`led-text text-8xl lg:text-9xl font-black ${isEmergency ? 'led-text-door' : ''}`}>
-                        {text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {text}
+                        {[...Array(8)].map((_, i) => (
+                            <span key={i}>{text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                        ))}
                     </div>
                 </div>
             );
         }
 
 
+
+
         /**
          * VideoZone Component
          * Displays a looped video and the LED announcement bar.
          */
-        function VideoZone({ announcementText, isEmergency }) {
+        function VideoZone({ announcementText, isEmergency, rawDoorStatus }) {
             return (
                 <div className="w-full h-[20vh] min-h-[150px] bg-black overflow-hidden relative border-b-4 border-white z-50 flex flex-col">
                     {/* Compact Video Strip */}
@@ -264,13 +311,21 @@
                         </video>
 
 
+
+
                         {/* Minimalist Badge */}
-                        <div className="absolute inset-0 flex items-center justify-start px-4">
+                        <div className="absolute inset-0 flex items-center justify-between px-4">
                             <div className="bg-red-600/80 text-[8px] lg:text-[10px] text-white px-2 py-0.5 rounded-sm font-bold tracking-tighter uppercase backdrop-blur-sm border border-white/10">
                                 Live
                             </div>
+                            {/* Debug Door Badge */}
+                            <div className="bg-blue-600/80 text-[8px] lg:text-[10px] text-white px-2 py-0.5 rounded-sm font-bold tracking-tighter uppercase backdrop-blur-sm border border-white/10">
+                                Door: {typeof rawDoorStatus === 'object' ? JSON.stringify(rawDoorStatus) : (rawDoorStatus || "---")}
+                            </div>
                         </div>
                     </div>
+
+
 
 
                     {/* Larger LED Announcement Area (2/3 of the 10vh box) */}
@@ -282,6 +337,8 @@
         }
 
 
+
+
         /**
          * Stop Component
          * Individual stop with dot and text that can slide vertically
@@ -291,9 +348,9 @@
             const configs = [
                 {
                     // (0) Exit position (Off-screen bottom)
-                    dotClass: 'top-[100%] left-[23%] sm:left-[28.8%]',
-                    textClass: 'top-[100%] left-[33%] sm:left-[38%]',
-                    dotSize: 'w-32 h-32',
+                    dotClass: 'top-[120%] left-[23%] sm:left-[28.8%]',
+                    textClass: 'top-[120%] left-[33%] sm:left-[38%]',
+                    dotSize: 'w-24 h-24',
                     dotBorder: 'border-0',
                     textSize: 'text-8xl sm:text-9xl',
                     subSize: 'text-6xl sm:text-7xl',
@@ -305,7 +362,7 @@
                     // (1) Bottom position (CURRENT STOP)
                     dotClass: 'top-[70%] left-[17%] sm:left-[22.8%]',
                     textClass: 'top-[58%] left-[26%] sm:left-[34%]',
-                    dotSize: 'w-32 h-32',
+                    dotSize: 'w-28 h-28',
                     dotBorder: 'border-4',
                     textSize: 'text-8xl sm:text-9xl',
                     subSize: 'text-6xl sm:text-7xl',
@@ -317,7 +374,7 @@
                     // (2) Middle position (NEXT STOP)
                     dotClass: 'top-[42%] left-[11%] sm:left-[18%]',
                     textClass: 'top-[42%] left-[22%] sm:left-[30%]',
-                    dotSize: 'w-28 h-28',
+                    dotSize: 'w-24 h-24',
                     dotBorder: 'border-2',
                     textSize: 'text-5xl sm:text-6xl',
                     subSize: 'text-4xl sm:text-5xl',
@@ -329,7 +386,7 @@
                     // (3) Top position (FUTURE STOP)
                     dotClass: 'top-[21%] left-[3%] sm:left-[12%]',
                     textClass: 'top-[21%] left-[12%] sm:left-[25%]',
-                    dotSize: 'w-28 h-28',
+                    dotSize: 'w-24 h-24',
                     dotBorder: 'border-2',
                     textSize: 'text-5xl sm:text-6xl',
                     subSize: 'text-4xl sm:text-5xl',
@@ -339,9 +396,9 @@
                 },
                 {
                     // (4) Entrance position (Off-screen top)
-                    dotClass: 'top-[-10%] left-[-2%] sm:left-[7%]',
-                    textClass: 'top-[-10%] left-[7%] sm:left-[20%]',
-                    dotSize: 'w-32 h-32',
+                    dotClass: 'top-[-20%] left-[-2%] sm:left-[7%]',
+                    textClass: 'top-[-20%] left-[7%] sm:left-[20%]',
+                    dotSize: 'w-16 h-16',
                     dotBorder: 'border-0',
                     textSize: 'text-5xl sm:text-6xl',
                     subSize: 'text-4xl sm:text-5xl',
@@ -352,9 +409,13 @@
             ];
 
 
+
+
             const config = configs[position] || configs[1];
             // Position 1 is current stop, should be on top
             const zIndex = position === 1 ? 'z-40' : (position === 2 ? 'z-30' : 'z-20');
+
+
 
 
             return (
@@ -366,6 +427,8 @@
                     >
                         <div className={`${config.dotSize} bg-white rounded-full ${config.shadow} ${config.dotBorder} border-white ${isNext ? 'animate-pulse' : ''}`}></div>
                     </div>
+
+
 
 
                     {/* TEXT */}
@@ -385,6 +448,8 @@
         }
 
 
+
+
         /**
          * RouteVisualization Component
          * Displays scrolling stops that slide down as bus progresses
@@ -393,6 +458,8 @@
             const [displayData, setDisplayData] = React.useState([]);
             const [prevStops, setPrevStops] = React.useState([]);
             const isAnimating = React.useRef(false);
+
+
 
 
             // Helper to get current visible stops with keys
@@ -412,6 +479,8 @@
             };
 
 
+
+
             // Initialize display data
             React.useEffect(() => {
                 const visible = getVisibleWithKeys(stops);
@@ -420,20 +489,28 @@
             }, []);
 
 
+
+
             // Handle updates with choreography or instant refresh
             React.useEffect(() => {
                 if (prevStops.length > 0 && JSON.stringify(stops) !== JSON.stringify(prevStops)) {
                     if (isAnimating.current) return;
 
 
+
+
                     const nextVisible = getVisibleWithKeys(stops);
                     const currentVisible = displayData.map(d => d.stop);
+
+
 
 
                     // Check if it's a 1-stop sequential move
                     // sequential if nextVisible[0] was previously at position 1 (which is index 1 in displayData)
                     const isSequential = currentVisible[1] &&
                         currentVisible[1].stopName.trim() === nextVisible[0].stop.stopName.trim();
+
+
 
 
                     if (isSequential) {
@@ -445,9 +522,13 @@
             }, [stops]);
 
 
+
+
             const animateJump = async (newStops) => {
                 isAnimating.current = true;
                 const nextVisible = getVisibleWithKeys(newStops);
+
+
 
 
                 // Fade out current items
@@ -455,9 +536,13 @@
                 await new Promise(r => setTimeout(r, 400));
 
 
+
+
                 // Swap and fade in
                 setDisplayData(nextVisible.map((v, i) => ({ ...v, position: i + 1, opacity: 1 })));
                 await new Promise(r => setTimeout(r, 600));
+
+
 
 
                 setPrevStops(newStops);
@@ -465,9 +550,13 @@
             };
 
 
+
+
             const animateSequential = async (newStops) => {
                 const nextVisible = getVisibleWithKeys(newStops);
                 const currentData = [...displayData].slice(0, 4); // Handle case where previous animation didn't clean up
+
+
 
 
                 if (currentData.length < 3) {
@@ -476,7 +565,11 @@
                 }
 
 
+
+
                 isAnimating.current = true;
+
+
 
 
                 // Sync the DATA part of our items with the NEW stops immediately
@@ -489,6 +582,8 @@
                 ];
 
 
+
+
                 // Step 0: Mount Entrance Item at pos 4 (Wait 100ms for stable render)
                 setDisplayData([
                     { ...items[0], position: 1, opacity: 1 },
@@ -499,6 +594,8 @@
                 await new Promise(r => setTimeout(r, 100));
 
 
+
+
                 // Step 1: Slide ONLY current stop OUT (1 -> 0)
                 setDisplayData([
                     { ...items[0], position: 0, opacity: 0, fadeDuration: 800 }, // Exit
@@ -507,6 +604,8 @@
                     { ...items[3], position: 4, opacity: 0 }                    // Wait
                 ]);
                 await new Promise(r => setTimeout(r, 600));
+
+
 
 
                 // Step 2: Slide new CURRENT stop IN (2 -> 1) - THE LEAD MOVE
@@ -520,6 +619,8 @@
                 await new Promise(r => setTimeout(r, 800));
 
 
+
+
                 // Step 3: Slide NEXT stop down (3 -> 2)
                 setDisplayData([
                     { ...items[0], position: 0, opacity: 0 },
@@ -528,6 +629,8 @@
                     { ...items[3], position: 4, opacity: 0 }                    // Wait
                 ]);
                 await new Promise(r => setTimeout(r, 500));
+
+
 
 
                 // Step 4: Slide FUTURE stop in (4 -> 3)
@@ -539,7 +642,11 @@
                 ]);
 
 
+
+
                 await new Promise(r => setTimeout(r, 1200));
+
+
 
 
                 // Final Clean
@@ -550,12 +657,18 @@
                 ]);
 
 
+
+
                 setPrevStops(newStops);
                 isAnimating.current = false;
             };
 
 
+
+
             if (displayData.length === 0) return null;
+
+
 
 
             return (
@@ -571,6 +684,8 @@
                                 strokeLinecap="round"
                             />
                         </svg>
+
+
 
 
                         {displayData.map((item) => (
@@ -590,6 +705,8 @@
         }
 
 
+
+
         /**
          * SlidingText Component
          * Handles vertical rolling transition for text
@@ -598,6 +715,8 @@
             const [displayText, setDisplayText] = useState(text);
             const [slideState, setSlideState] = useState('active'); // 'active', 'slide-out'
             const [nextText, setNextText] = useState('');
+
+
 
 
             useEffect(() => {
@@ -611,6 +730,8 @@
                     }, 600);
                 }
             }, [text]);
+
+
 
 
             return (
@@ -633,6 +754,8 @@
         }
 
 
+
+
         // --- GPS CONFIGURATION & UTILS ---
         const GPS_STOPS = [
             // Stop 1:  (Corrected Longitude to 100 based on context/proximity)
@@ -644,9 +767,13 @@
         ];
 
 
+
+
         const GPS_WARNINGS = [
             { id: 104, name: "TURN RIGHT", lat: 13.912000, lng: 100.555583, radius: 0.03 },
         ];
+
+
 
 
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -663,9 +790,13 @@
         }
 
 
+
+
         function deg2rad(deg) {
             return deg * (Math.PI / 180);
         }
+
+
 
 
         function getClosestStop(lat, lng) {
@@ -673,6 +804,8 @@
             let minDist = Infinity;
             let closest = null;
             let index = -1;
+
+
 
 
             GPS_STOPS.forEach((stop, i) => {
@@ -685,8 +818,12 @@
             });
 
 
+
+
             return { stop: closest, index, distance: minDist };
         }
+
+
 
 
         function getClosestWarning(lat, lng) {
@@ -701,23 +838,32 @@
         }
 
 
+
+
         /**
          * BusCard Component
          * Handles layout, animations, and VOICE ANNOUNCEMENTS
          */
-        function BusCard({ busId, data }) {
+        function BusCard({ busId, data, doorStatus, showAlert }) {
             const busNum = data?.busNumber || busId;
             const busSuffix = data?.busNumberSuffix || "";
             const destination = data?.destination || "Unknown";
             const destinationTH = data?.destinationTH || "";
 
 
+
+
             // --- STATE DECLARATIONS ---
             const [hasInteracted, setHasInteracted] = useState(false);
             const [lastAnnouncedStop, setLastAnnouncedStop] = useState(null);
             const [lastAnnouncedWarning, setLastAnnouncedWarning] = useState(null);
+            const [lastPlayedDoorState, setLastPlayedDoorState] = useState(null); // Persistent tracker
             const [isDemoMode, setIsDemoMode] = useState(false);
             const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+            const isLockedRef = useRef(false);
+            const warningCooldownRef = useRef(0);
+
+
 
 
             // --- AUDIO CONFIG ---
@@ -732,11 +878,15 @@
                     "Sukhothai Univ.": "/sounds/stops/sukhotai_univ.mp3"
                 },
                 warnings: {
-                    "TURN LEFT": "/sounds/stops/warning_turn.mp3", // Updated to correct path
+                    "TURN LEFT": "/sounds/stops/warning_turn.mp3",
                     "TURN RIGHT": "/sounds/stops/warning_turn.mp3",
                     "HOLD ON": "/sounds/hold_on.mp3"
-                }
+                },
+                doorOpen: "/sounds/door_opening.mp3",
+                doorClose: "/sounds/door_closing.mp3"
             };
+
+
 
 
             // --- GPS Debug ---
@@ -745,9 +895,14 @@
             const speed = data?.speed;
 
 
+
+
+
             // --- GPS LOGIC ---
             // Calculate current stop based on GPS info
             const gpsInfo = useMemo(() => isDemoMode ? null : getClosestStop(gpsLat, gpsLng), [isDemoMode, gpsLat, gpsLng]);
+
+
 
 
             // Logic for "Next Stop" display:
@@ -756,6 +911,8 @@
             const calculatedTarget = useMemo(() => {
                 if (!gpsInfo) return null;
                 const { index, distance } = gpsInfo;
+
+
 
 
                 // If we are AT the stop (less than 50m), show the NEXT one in line
@@ -767,9 +924,13 @@
             }, [gpsInfo]);
 
 
+
+
             // Determine Target Stop (Prefer GPS, fallback to Database)
             const targetStop = calculatedTarget ? calculatedTarget.name : (data?.targetStopName || "Please Wait");
             const targetStopTH = calculatedTarget ? calculatedTarget.nameTH : (data?.targetStopNameTH || "");
+
+
 
 
             // Determine Next Stops
@@ -792,45 +953,74 @@
 
 
 
+
+
+
+
             // --- EFFECT: AUDIO SYSTEM (Chime -> Voice) ---
             useEffect(() => {
-                if (!hasInteracted || !targetStop || targetStop === "Please Wait") return;
-                if (isAudioPlaying) return; // Prevent overlapping with other audio
+                if (isAudioPlaying || isLockedRef.current) return; // Prevent overlapping with other audio
+
 
                 // Prevent repeat
                 if (targetStop === lastAnnouncedStop) return;
 
-                // Mark as playing
+
+                // Mark as playing (Sync lock)
+                isLockedRef.current = true;
                 setIsAudioPlaying(true);
+
 
                 // 1. Play Chime
                 const chime = new Audio(audioConfig.chimeStr);
+
 
                 chime.onended = () => {
                     // 2. Play Voice when chime ends
                     const targetKey = targetStop.trim().toLowerCase();
                     const matchedKey = Object.keys(audioConfig.stops).find(k => k.trim().toLowerCase() === targetKey);
 
+
                     const voiceFile = matchedKey ? audioConfig.stops[matchedKey] : audioConfig.defaultStop;
                     console.log(`[Audio] Announcing: "${targetStop}" -> ${voiceFile}`);
 
+
                     const voice = new Audio(voiceFile);
-                    voice.onended = () => setIsAudioPlaying(false); // Done
+                    voice.onended = () => {
+                        setIsAudioPlaying(false);
+                        isLockedRef.current = false;
+                    };
+                    voice.onerror = () => {
+                        setIsAudioPlaying(false);
+                        isLockedRef.current = false;
+                    };
                     voice.play().catch(e => {
                         console.error("Voice Play Error:", e);
                         setIsAudioPlaying(false);
+                        isLockedRef.current = false;
                     });
                 };
 
-                chime.onerror = () => setIsAudioPlaying(false);
+
+                chime.onerror = () => {
+                    setIsAudioPlaying(false);
+                    isLockedRef.current = false;
+                };
                 chime.play().catch(e => {
                     console.error("Chime Error:", e);
                     setIsAudioPlaying(false);
+                    isLockedRef.current = false;
                 });
+
 
                 setLastAnnouncedStop(targetStop);
 
+
             }, [targetStop, targetStopTH, hasInteracted, lastAnnouncedStop, isAudioPlaying]);
+
+
+
+
 
 
 
@@ -841,8 +1031,11 @@
             const currentWarning = data?.warning || (gpsWarning ? gpsWarning.name : "");
 
 
+
+
             useEffect(() => {
                 if (!hasInteracted) return;
+
 
                 // Reset tracker if no warning is active
                 if (!currentWarning) {
@@ -852,24 +1045,48 @@
                     return;
                 }
 
+
                 if (currentWarning === lastAnnouncedWarning) return;
-                if (isAudioPlaying) return; // Prioritize whatever is already speaking
+                if (isAudioPlaying || isLockedRef.current) return;
+
+
+                // Cooldown to prevent rapid re-trigger (5 seconds)
+                const now = Date.now();
+                if (now - warningCooldownRef.current < 5000) return;
+                warningCooldownRef.current = now;
+
+
+                // FIX: Mark as announced IMMEDIATELY to prevent double-trigger
+                setLastAnnouncedWarning(currentWarning);
+
 
                 const warningKey = currentWarning.trim().toUpperCase();
                 const voiceFile = audioConfig.warnings[warningKey] || audioConfig.defaultStop;
 
+
                 // Mark as playing
+                isLockedRef.current = true;
                 setIsAudioPlaying(true);
+
 
                 // If it's a TURN warning, play immediately WITHOUT chime
                 if (warningKey.includes("TURN")) {
                     console.log(`[Audio GPS] Turn Warning: "${currentWarning}" -> ${voiceFile}`);
 
+
                     const voice = new Audio(voiceFile);
-                    voice.onended = () => setIsAudioPlaying(false);
+                    voice.onended = () => {
+                        setIsAudioPlaying(false);
+                        isLockedRef.current = false;
+                    };
+                    voice.onerror = () => {
+                        setIsAudioPlaying(false);
+                        isLockedRef.current = false;
+                    };
                     voice.play().catch(e => {
                         console.error("Turn Voice Play Error:", e);
                         setIsAudioPlaying(false);
+                        isLockedRef.current = false;
                     });
                 } else {
                     // Otherwise, play chime then voice
@@ -877,22 +1094,68 @@
                     const chime = new Audio(audioConfig.chimeStr);
                     chime.onended = () => {
                         const voice = new Audio(voiceFile);
-                        voice.onended = () => setIsAudioPlaying(false);
+                        voice.onended = () => {
+                            setIsAudioPlaying(false);
+                            isLockedRef.current = false;
+                        };
+                        voice.onerror = () => {
+                            setIsAudioPlaying(false);
+                            isLockedRef.current = false;
+                        };
                         voice.play().catch(e => {
                             console.error("Warning Voice Play Error:", e);
                             setIsAudioPlaying(false);
+                            isLockedRef.current = false;
                         });
                     };
-                    chime.onerror = () => setIsAudioPlaying(false);
+                    chime.onerror = () => {
+                        setIsAudioPlaying(false);
+                        isLockedRef.current = false;
+                    };
                     chime.play().catch(e => {
                         console.error("Chime Error:", e);
                         setIsAudioPlaying(false);
+                        isLockedRef.current = false;
                     });
                 }
-
-                setLastAnnouncedWarning(currentWarning);
-
             }, [currentWarning, hasInteracted, lastAnnouncedWarning, isAudioPlaying]);
+
+
+            // --- EFFECT: DOOR SOUND SYSTEM (Independent) ---
+            useEffect(() => {
+                if (!hasInteracted || !showAlert || !doorStatus) return;
+
+                let s = "";
+                if (typeof doorStatus === 'object') {
+                    s = (doorStatus.signal || doorStatus.status || doorStatus.state || doorStatus.value || doorStatus.door || "").toString();
+                } else {
+                    s = doorStatus.toString();
+                }
+                s = s.toUpperCase();
+
+                // Normalize state to track plays
+                let normalizedState = "";
+                if (s === "OPEN" || s === "1" || s === "TRUE" || s === "OPENED" || s === "OPENING") {
+                    normalizedState = "OPEN";
+                } else if (s === "CLOSE" || s === "0" || s === "FALSE" || s === "CLOSED" || s === "CLOSING") {
+                    normalizedState = "CLOSE";
+                }
+
+                if (!normalizedState || normalizedState === lastPlayedDoorState) return;
+
+                let soundFile = normalizedState === "OPEN" ? audioConfig.doorOpen : audioConfig.doorClose;
+
+                if (soundFile) {
+                    console.log(`[Audio Door] Playing (Independent): ${soundFile}`);
+                    const audio = new Audio(soundFile);
+                    audio.play().catch(e => console.error("Door Sound Play Error:", e));
+                    setLastPlayedDoorState(normalizedState);
+                }
+            }, [doorStatus, showAlert, hasInteracted, lastPlayedDoorState]);
+
+
+
+
 
 
 
@@ -926,8 +1189,16 @@
 
 
 
+
+
+
+
+
+
             return (
                 <div className="w-full h-full flex flex-col bg-gray-100 overflow-hidden relative">
+
+
 
 
                     {/* --- MODE TOGGLE BUTTON --- */}
@@ -939,6 +1210,8 @@
                             {isDemoMode ? "🛠 DEMO MODE ON" : "📡 GPS MODE ON"}
                         </button>
                     </div>
+
+
 
 
                     {/* --- GPS DEBUG OVERLAY --- */}
@@ -970,8 +1243,30 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     {/* Header Bar - Fixed Height, Flex Layout (No Absolutes) */}
                     <div className="flex flex-col md:flex-row bg-[#e5e7eb] border-b-[6px] border-white shrink-0 z-40 shadow-sm min-h-[140px]">
+
+
 
 
                         {/* 1. This Stop (Red) - REMOVED animate-blink */}
@@ -979,6 +1274,8 @@
                             <h2 className="text-3xl md:text-5xl font-semibold leading-none">ป้ายต่อไป</h2>
                             <h2 className="text-xl md:text-2xl font-light mt-1">Next stop:</h2>
                         </div>
+
+
 
 
                         {/* 2. Stop Name (Center, Flex Grow) - ADDED animate-flash-once logic via key */}
@@ -992,8 +1289,12 @@
                         </div>
 
 
+
+
                         {/* 3. Right Side: Destination + Badge (Flex Row) */}
                         <div className="flex flex-row bg-gray-200/50">
+
+
 
 
                             {/* Destination Text */}
@@ -1001,6 +1302,8 @@
                                 <span className="block text-3xl md:text-5xl font-bold mb-1 text-gray-800">ปลายทาง: {destinationTH}</span>
                                 <span className="block text-2xl md:text-4xl text-gray-600">Towards: {destination}</span>
                             </div>
+
+
 
 
                             {/* Badge (Red Block) */}
@@ -1011,7 +1314,11 @@
                         </div>
 
 
+
+
                     </div>
+
+
 
 
                     {/* Body fills remaining space */}
@@ -1021,10 +1328,14 @@
         }
 
 
+
+
         // --- MAIN APP ---
         function App() {
             const [liveBuses, setLiveBuses] = useState([]);
             const [status, setStatus] = useState("Connecting...");
+
+
 
 
             // New state for announcements
@@ -1032,6 +1343,13 @@
                 text: "Welcome to AvenueBus",
                 isEmergency: false
             });
+
+
+            const [doorStatus, setDoorStatus] = useState("CLOSE");
+            const [showAlert, setShowAlert] = useState(false);
+            const timerRef = React.useRef(null);
+
+
 
 
             useEffect(() => {
@@ -1046,9 +1364,13 @@
             }, []);
 
 
+
+
             // Listen for announcements from second Firebase
             useEffect(() => {
                 if (!announceDb) return;
+
+
 
 
                 const announceRef = collection(announceDb, 'announcements');
@@ -1065,19 +1387,118 @@
             }, []);
 
 
+
+
+            // Listen for door status from Realtime Database
+            useEffect(() => {
+                if (!rtdb) {
+                    console.warn("[RTDB] Database not initialized. Check your Firebase config.");
+                    return;
+                }
+
+
+                // Show which DB we are talking to
+                console.log("[RTDB] Connection attempt to:", ENV_FIREBASE_CONFIG.databaseURL);
+                console.log("[RTDB] Listening for 'door' in REALTIME DATABASE...");
+
+
+                // Diagnostic: Log everything at the root to see what we have
+                rtdb.ref('/').on('value', (snap) => {
+                    const data = snap.val();
+                    console.log("[RTDB DIAGNOSTIC] Full Root Data Snapshot:", data);
+
+
+                    // If door is hidden inside another key, we might find it here
+                    if (data && data.door !== undefined) {
+                        console.log("[RTDB] Found 'door' key at root:", data.door);
+                    }
+                }, (error) => {
+                    console.error("[RTDB ERROR] Root listener failed:", error);
+                });
+
+
+                const doorRef = rtdb.ref('door');
+                onValue(doorRef, (snapshot) => {
+                    const status = snapshot.val();
+                    console.log("[RTDB REALTIME] Direct 'door' update:", status);
+                    if (status !== null && status !== undefined) {
+                        setDoorStatus(status);
+
+
+                        // Show alert for 8 seconds whenever data changes
+                        setShowAlert(true);
+                        if (timerRef.current) clearTimeout(timerRef.current);
+                        timerRef.current = setTimeout(() => {
+                            setShowAlert(false);
+                        }, 8000); // 8 seconds
+                    }
+                }, (error) => {
+                    console.error("[RTDB ERROR] 'door' listener failed:", error);
+                });
+            }, []);
+
+
+
+
+            const doorAlert = useMemo(() => {
+                if (!doorStatus) return null;
+
+
+                let s = "";
+                if (typeof doorStatus === 'object') {
+                    // Check common keys, including 'signal' which we found in the console
+                    s = (doorStatus.signal || doorStatus.status || doorStatus.state || doorStatus.value || doorStatus.door || "").toString();
+                } else {
+                    s = doorStatus.toString();
+                }
+
+
+                s = s.toUpperCase();
+
+
+                // Opening states
+                if (s === "OPEN" || s === "1" || s === "TRUE" || s === "OPENED" || s === "OPENING") {
+                    return {
+                        text: "🚨 DOOR OPENING - PLEASE WATCH YOUR STEP 🚨",
+                        isEmergency: true
+                    };
+                }
+
+
+                // Closing states
+                if (s === "CLOSE" || s === "0" || s === "FALSE" || s === "CLOSED" || s === "CLOSING") {
+                    return {
+                        text: "⚠️ DOOR CLOSING - PLEASE KEEP CLEAR ⚠️",
+                        isEmergency: true // Keep red for closing too
+                    };
+                }
+
+
+                return null;
+            }, [doorStatus]);
+
+
             return (
                 <div className="w-full h-screen flex flex-col bg-white text-gray-900 overflow-hidden">
                     {/* TOP SECTION: VIDEO + LED (40% H) */}
                     <VideoZone
-                        announcementText={liveBuses[0]?.data?.warning || (getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)?.name) || announcement.text}
-                        isEmergency={(liveBuses[0]?.data?.warning || getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)) ? true : announcement.isEmergency}
+                        announcementText={(showAlert && doorAlert) ? doorAlert.text : (liveBuses[0]?.data?.warning || (getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)?.name) || announcement.text)}
+                        isEmergency={((showAlert && doorAlert) ? doorAlert.isEmergency : false) || (liveBuses[0]?.data?.warning || getClosestWarning(liveBuses[0]?.data?.gps_lat, liveBuses[0]?.data?.gps_lng)) ? true : announcement.isEmergency}
+                        rawDoorStatus={doorStatus}
                     />
+
+
 
 
                     {/* BOTTOM SECTION: BUS INFO (Remaining H) */}
                     <div className="flex-grow relative w-full overflow-hidden">
                         {liveBuses.length > 0 ? (
-                            <BusCard busId={liveBuses[0].id} data={liveBuses[0].data} />
+                            <BusCard
+                                busId={liveBuses[0].id}
+                                data={liveBuses[0].data}
+                                doorStatus={doorStatus}
+                                showAlert={showAlert}
+                            />
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
                                 <h1 className="text-3xl font-light mb-2">Connecting...</h1>
@@ -1093,13 +1514,19 @@
         }
 
 
+
+
         // Mount
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
 
 
+
+
     </script>
 </body>
+
+
 
 
 </html>
